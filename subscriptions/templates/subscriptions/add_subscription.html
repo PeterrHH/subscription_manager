@@ -1,0 +1,60 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Subscription</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'subscriptions/add_subscriptions.css' %}">
+</head>
+<body>
+    <div class="container">
+        <h1>Add Subscription</h1>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="service_name">Service Name:</label>
+                <input type="text" id="service_name" name="service_name" required>
+            </div>
+            <div class="form-group">
+                <label for="price">Price:</label>
+                <input type="number" id="price" name="price" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="billing_cycle">Billing Cycle:</label>
+                <select id="billing_cycle" name="billing_cycle" required>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="category">Category:</label>
+                <select id="category" name="category" required>
+                    <option value="streaming">Streaming</option>
+                    <option value="music">Music</option>
+                    <option value="software">Software</option>
+                    <option value="utility">Utility</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="start_date">Start Date:</label>
+                <input type="date" id="start_date" name="start_date" required>
+            </div>
+            <div class="form-group">
+                <label for="contract_duration">Contract Duration:</label>
+                <select id="contract_duration" name="contract_duration" required>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="management_link">Management Link:</label>
+                <input type="url" id="management_link" name="management_link">
+            </div>
+            <button type="submit" class="button">Add Subscription</button>
+        </form>
+        <form action="{% url 'home' %}">
+            <button type="submit" class="button">Return to Homepage</button>
+        </form>
+    </div>
+</body>
+</html>

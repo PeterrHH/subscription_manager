@@ -1,0 +1,63 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Home</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'subscriptions/home.css' %}">
+</head>
+<body>
+    <div class="container">
+        <h1>Subscriptions</h1>
+        <button onclick="window.location.href='{% url 'add_subscription' %}'">Add Subscription</button>
+        <table>
+            <thead>
+                <tr>
+                    <th onclick="sortTable(0)">Service Name</th>
+                    <th onclick="sortTable(1)">Price</th>
+                    <th>Billing Cycle</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Management Link</th>
+                </tr>
+                <tr>
+                    <th><input type="text" id="serviceNameFilter" onkeyup="filterTable(0)" placeholder="Filter by name"></th>
+                    <th></th>
+                    <th></th>
+                    <th>
+                        <select id="categoryFilter" onchange="filterTable(3)">
+                            <option value="">All</option>
+                            <option value="streaming">Streaming</option>
+                            <option value="music">Music</option>
+                            <option value="software">Software</option>
+                            <option value="utility">Utility</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </th>
+                    <th>
+                        <select id="statusFilter" onchange="filterTable(4)">
+                            <option value="">All</option>
+                            <option value="active">Active</option>
+                            <option value="paused">Paused</option>
+                            <option value="canceled">Canceled</option>
+                        </select>
+                    </th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subscription in subscriptions %}
+                <tr>
+                    <td>{{ subscription.service_name }}</td>
+                    <td>{{ subscription.price }}</td>
+                    <td>{{ subscription.billing_cycle }}</td>
+                    <td>{{ subscription.category }}</td>
+                    <td>{{ subscription.status }}</td>
+                    <td><a href="{{ subscription.management_link }}" target="_blank">Manage</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script src="{% static 'subscriptions/home.js' %}"></script>
+</body>
+</html>
