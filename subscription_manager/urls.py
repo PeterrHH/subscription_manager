@@ -22,4 +22,5 @@ urlpatterns = [
     path('', RedirectView.as_view(url='/subscriptions/', permanent=True)),
     path('subscriptions/', include('subscriptions.urls')),
     path('accounts/', include('django.contrib.auth.urls')),  # Add this line
+    path('api/', include('subscriptions.urls')),
 ]
