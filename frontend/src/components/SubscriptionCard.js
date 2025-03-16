@@ -16,10 +16,13 @@ import {
   ModalFooter,
   ModalBody,
   ModalCloseButton,
+  IconButton,
+  Tooltip,
 } from '@chakra-ui/react';
-import { ExternalLinkIcon } from '@chakra-ui/icons';
+import { ExternalLinkIcon, EditIcon } from '@chakra-ui/icons';
+import { useNavigate } from 'react-router-dom';
 
-const SubscriptionCard = ({ subscription, onCancel }) => {
+const SubscriptionCard = ({ subscription, onCancel, onEdit }) => {
   const { 
     id, 
     service_name, 
@@ -27,12 +30,16 @@ const SubscriptionCard = ({ subscription, onCancel }) => {
     billing_cycle, 
     next_charge_date, 
     category, 
-    management_link 
+    management_link,
+    send_reminder,
+    reminder_time,
   } = subscription;
   
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const navigate = useNavigate();
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'Not available';
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
@@ -55,6 +62,28 @@ const SubscriptionCard = ({ subscription, onCancel }) => {
     onClose();
   };
 
+  const handleEditClick = () => {
+    if (onEdit) {
+      onEdit(subscription);
+    } else {
+      navigate(`/edit/${id}`, { state: { subscription } });
+    }
+  };
+
+  const getReminderText = () => {
+    if (!send_reminder) return null;
+    
+    const reminderMap = {
+      'SAME_DAY': 'on the due date',
+      'ONE_DAY': '1 day before',
+      'TWO_DAYS': '2 days before',
+      'THREE_DAYS': '3 days before',
+      'ONE_WEEK': '1 week before',
+    };
+    
+    return `Reminder: ${reminderMap[reminder_time] || ''}`;
+  };
+
   return (
     <>
       <Box
@@ -66,8 +95,21 @@ const SubscriptionCard = ({ subscription, onCancel }) => {
         shadow="sm"
         transition="all 0.2s"
         _hover={{ shadow: 'md' }}
+        position="relative"
       >
-        <Flex justify="space-between" align="flex-start" mb={3}>
+        <Tooltip label="Edit subscription">
+          <IconButton
+            icon={<EditIcon />}
+            size="sm"
+            aria-label="Edit subscription"
+            position="absolute"
+            top={2}
+            right={2}
+            onClick={handleEditClick}
+          />
+        </Tooltip>
+        
+        <Flex justify="space-between" align="flex-start" mb={3} mt={6}>
           <Heading size="md" fontWeight="semibold">{service_name}</Heading>
           <Badge colorScheme={getCategoryColor(category)}>
             {category.toLowerCase()}
@@ -75,17 +117,23 @@ const SubscriptionCard = ({ subscription, onCancel }) => {
         </Flex>
         
         <Text fontSize="2xl" fontWeight="bold" color="purple.500" mb={2}>
-          ${price}
+          ${parseFloat(price).toFixed(2)}
           <Text as="span" fontSize="sm" color="gray.500" fontWeight="normal">
             /{billing_cycle.toLowerCase()}
           </Text>
         </Text>
         
-        <Text color="gray.600" mb={4}>
+        <Text color="gray.600" mb={2}>
           Next charge: {formatDate(next_charge_date)}
         </Text>
         
-        <HStack spacing={4} mt={2}>
+        {getReminderText() && (
+          <Text color="blue.600" fontSize="sm" mb={4}>
+            {getReminderText()}
+          </Text>
+        )}
+        
+        <HStack spacing={4} mt={4}>
           {management_link && (
             <Button
               size="sm"

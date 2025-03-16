@@ -39,6 +39,9 @@ export const subscriptionsAPI = {
   getAll: () => 
     apiClient.get('/subscriptions/'),
   
+  getById: (id) =>
+    apiClient.get(`/subscriptions/${id}/`),
+    
   getActive: () => 
     apiClient.get('/subscriptions/active/'),
   

@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AddSubscription from './pages/AddSubscription';
+import EditSubscription from './pages/EditSubscription';
 import Navbar from './components/Navbar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
@@ -40,6 +41,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <AddSubscription />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/edit/:id" 
+          element={
+            <ProtectedRoute>
+              <EditSubscription />
             </ProtectedRoute>
           } 
         />

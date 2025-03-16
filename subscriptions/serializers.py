@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import Subscription
 
 class SubscriptionSerializer(serializers.ModelSerializer):
+    next_charge_date = serializers.SerializerMethodField()
+    
     class Meta:
         model = Subscription
         fields = [
@@ -15,11 +17,20 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'status',
             'category',
             'management_link',
+            'send_reminder',
+            'reminder_time',
             'cancellation_date',
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'next_charge_date']
+
+    def get_next_charge_date(self, obj):
+        """Get the calculated next charge date"""
+        next_date = obj.get_next_charge_date()
+        if next_date:
+            return next_date.isoformat()
+        return None
 
     def validate_price(self, value):
         if value < 0:
@@ -28,7 +39,14 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if data.get('status') == 'CANCELED' and not data.get('cancellation_date'):
-            raise serializers.ValidationError(
-                "Cancellation date is required when status is canceled"
+            data['cancellation_date'] = serializers.DateField().to_internal_value(
+                serializers.DateField().to_representation(
+                    serializers.DateField().get_default()
+                )
             )
+        
+        # If send_reminder is False, set reminder_time to None
+        if 'send_reminder' in data and not data.get('send_reminder'):
+            data['reminder_time'] = None
+            
         return data 
