@@ -1,3 +1,5 @@
 Django>=3.0,<4.0
 psycopg2-binary>=2.8
-# ...other dependencies...
+djangorestframework>=3.12,<4.0
+django-cors-headers>=3.10,<4.0
+djangorestframework-simplejwt>=5.0,<6.0

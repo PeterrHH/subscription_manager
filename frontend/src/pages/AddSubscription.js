@@ -38,7 +38,9 @@ const AddSubscription = () => {
     category: 'OTHER',
     management_link: '',
     send_reminder: false,
-    reminder_time: 'SAME_DAY',
+    reminder_days_ahead: 0, // New field for days ahead
+    reminder_hour: '', // New field for hour
+    reminder_minute: '', // New field for minute
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -57,9 +59,9 @@ const AddSubscription = () => {
     setFormData(prev => ({ ...prev, price: value }));
   };
 
-  const handleSwitchChange = (e) => {
-    const { name, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: checked }));
+  const handleTimeChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -205,33 +207,65 @@ const AddSubscription = () => {
                 <FormHelperText>URL to manage this subscription</FormHelperText>
               </FormControl>
 
-              <FormControl>
-                <FormLabel>Reminder Settings</FormLabel>
-                <HStack>
-                  <Switch 
-                    name="send_reminder" 
-                    isChecked={formData.send_reminder}
-                    onChange={handleSwitchChange}
-                  />
-                  <Text>Send email reminders</Text>
-                </HStack>
+              <FormControl display="flex" alignItems="center">
+                <FormLabel htmlFor="send-reminder" mb="0">
+                  Send Reminder
+                </FormLabel>
+                <Switch
+                  id="send-reminder"
+                  isChecked={formData.send_reminder}
+                  onChange={(e) => setFormData({ ...formData, send_reminder: e.target.checked })}
+                />
               </FormControl>
 
               {formData.send_reminder && (
-                <FormControl>
-                  <FormLabel>Reminder Time</FormLabel>
-                  <Select
-                    name="reminder_time"
-                    value={formData.reminder_time}
-                    onChange={handleChange}
-                  >
-                    <option value="SAME_DAY">On the morning of due date</option>
-                    <option value="ONE_DAY">1 day ahead</option>
-                    <option value="TWO_DAYS">2 days ahead</option>
-                    <option value="THREE_DAYS">3 days ahead</option>
-                    <option value="ONE_WEEK">1 week ahead</option>
-                  </Select>
-                </FormControl>
+                <>
+                  <FormControl>
+                    <FormLabel>Days Ahead for Reminder</FormLabel>
+                    <NumberInput
+                      min={0}
+                      value={formData.reminder_days_ahead}
+                      onChange={(value) => setFormData({ ...formData, reminder_days_ahead: value })}
+                    >
+                      <NumberInputField placeholder="Enter number of days" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                    <FormHelperText>Set how many days ahead of the due date to send the reminder.</FormHelperText>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Reminder Time</FormLabel>
+                    <HStack>
+                      <Select
+                        name="reminder_hour"
+                        value={formData.reminder_hour}
+                        onChange={handleTimeChange}
+                      >
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={i}>
+                            {i.toString().padStart(2, '0')}
+                          </option>
+                        ))}
+                      </Select>
+                      <Text>:</Text>
+                      <Select
+                        name="reminder_minute"
+                        value={formData.reminder_minute}
+                        onChange={handleTimeChange}
+                      >
+                        {Array.from({ length: 60 }, (_, i) => (
+                          <option key={i} value={i}>
+                            {i.toString().padStart(2, '0')}
+                          </option>
+                        ))}
+                      </Select>
+                    </HStack>
+                    <FormHelperText>Select the exact time for the reminder.</FormHelperText>
+                  </FormControl>
+                </>
               )}
 
               <Button
