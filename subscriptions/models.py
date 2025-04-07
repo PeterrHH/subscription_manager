@@ -2,92 +2,79 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, URLValidator
 from django.utils import timezone
+from decimal import Decimal
+
 
 class Subscription(models.Model):
-    BILLING_CYCLE_CHOICES = [
+    SUBSCRIPTION_TYPES = [
+        ('PAID', 'Paid'),
+        ('FREE_TRIAL', 'Free Trial'),
+    ]
+    
+    BILLING_CYCLES = [
         ('WEEKLY', 'Weekly'),
         ('MONTHLY', 'Monthly'),
         ('YEARLY', 'Yearly'),
     ]
     
-    STATUS_CHOICES = [
-        ('ACTIVE', 'Active'),
-        ('PAUSED', 'Paused'),
-        ('CANCELED', 'Canceled'),
-    ]
-    
-    CATEGORY_CHOICES = [
+    CATEGORIES = [
         ('STREAMING', 'Streaming'),
         ('MUSIC', 'Music'),
         ('SOFTWARE', 'Software'),
         ('OTHER', 'Other'),
     ]
-    
-    SUBSCRIPTION_TYPE_CHOICES = [
-        ('FREE', 'Free'),
-        ('PAID', 'Paid'),
-    ]
-    
-    REMINDER_TIME_CHOICES = [
-        ('SAME_DAY', 'On the morning of due date'),
-        ('ONE_DAY', '1 day ahead'),
-        ('TWO_DAYS', '2 days ahead'),
-        ('THREE_DAYS', '3 days ahead'),
-        ('ONE_WEEK', '1 week ahead'),
+
+    STATUS_CHOICES = [
+        ('ACTIVE', 'Active'),
+        ('CANCELLED', 'Cancelled'),
+        ('DELETED', 'Deleted'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subscriptions')
     service_name = models.CharField(max_length=100)
-    subscription_type = models.CharField(
-        max_length=10,
-        choices=SUBSCRIPTION_TYPE_CHOICES,
-        default='PAID'
-    )
-    price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        validators=[MinValueValidator(0)]
-    )
-    billing_cycle = models.CharField(
-        max_length=10,
-        choices=BILLING_CYCLE_CHOICES,
-        default='MONTHLY'
-    )
-    start_date = models.DateField(default=timezone.now)
+    subscription_type = models.CharField(max_length=20, choices=SUBSCRIPTION_TYPES, default='PAID')
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    billing_cycle = models.CharField(max_length=20, choices=BILLING_CYCLES)
+    start_date = models.DateField()
     status = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=STATUS_CHOICES,
         default='ACTIVE'
     )
-    category = models.CharField(
-        max_length=10,
-        choices=CATEGORY_CHOICES,
-        default='OTHER'
-    )
-    management_link = models.URLField(
-        max_length=500,
-        validators=[URLValidator()],
-        null=True,
-        blank=True
-    )
-    send_reminder = models.BooleanField(default=False)
-    reminder_time = models.CharField(
-        max_length=10,
-        choices=REMINDER_TIME_CHOICES,
-        default='SAME_DAY',
-        null=True,
-        blank=True
-    )
+    category = models.CharField(max_length=20, choices=CATEGORIES)
+    management_link = models.URLField(max_length=200, blank=True, null=True)
     cancellation_date = models.DateField(null=True, blank=True)
+    
+    # Reminder Settings
+    send_reminder = models.BooleanField(default=False)
+    reminder_days_ahead = models.IntegerField(default=1, null = True)  # Store number of days ahead
+    reminder_hour = models.IntegerField(default=9, null = True)        # Store hour (1-12)
+    reminder_minute = models.IntegerField(default=0, null = True)      # Store minute (0-59)
+    reminder_ampm = models.CharField(                     # Store AM/PM
+        max_length=2,
+        choices=[('AM', 'AM'), ('PM', 'PM')],
+        default='AM',
+        null = True
+    )
+    
+    # Free Trial specific fields
+    free_trial_length = models.IntegerField(null=True, blank=True)
+    free_trial_unit = models.CharField(
+        max_length=10,
+        choices=[('DAYS', 'Days'), ('MONTHS', 'Months')],
+        null=True,
+        blank=True
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        ordering = ['start_date', 'service_name']
-
     def __str__(self):
         return f"{self.service_name} - {self.user.username}"
-        
+
+    class Meta:
+        ordering = ['-created_at']
+
     def get_next_charge_date(self):
         """Calculate the next charge date based on start date and billing cycle"""
         if not self.start_date:

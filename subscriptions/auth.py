@@ -42,6 +42,7 @@ def register(request):
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }, status=status.HTTP_201_CREATED)
+    print(f"Error i Registering is {serializer.errors}")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
@@ -53,9 +54,11 @@ def login(request):
     try:
         user = User.objects.get(username=username)
     except User.DoesNotExist:
+        print(f"User does not exist")
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
     
     if not user.check_password(password):
+        print(f"Password is incorrect")
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
     
     refresh = RefreshToken.for_user(user)

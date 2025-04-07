@@ -9,6 +9,7 @@ import AddSubscription from './pages/AddSubscription';
 import EditSubscription from './pages/EditSubscription';
 import Navbar from './components/Navbar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import CancelledSubscriptions from './pages/CancelledSubscriptions';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -52,6 +53,7 @@ function AppRoutes() {
             </ProtectedRoute>
           } 
         />
+        <Route path="/cancelled" element={<CancelledSubscriptions />} />
       </Routes>
     </Box>
   );

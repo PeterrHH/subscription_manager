@@ -18,8 +18,12 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'category',
             'management_link',
             'send_reminder',
-            'reminder_time',
-            'cancellation_date',
+            'reminder_days_ahead',
+            'reminder_hour',
+            'reminder_minute',
+            'reminder_ampm',
+            'free_trial_length',
+            'free_trial_unit',
             'created_at',
             'updated_at'
         ]
@@ -38,15 +42,18 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        if data.get('status') == 'CANCELED' and not data.get('cancellation_date'):
-            data['cancellation_date'] = serializers.DateField().to_internal_value(
-                serializers.DateField().to_representation(
-                    serializers.DateField().get_default()
-                )
-            )
+        # if data.get('status') == 'CANCELED' and not data.get('cancellation_date'):
+        #     data['cancellation_date'] = serializers.DateField().to_internal_value(
+        #         serializers.DateField().to_representation(
+        #             serializers.DateField().get_default()
+        #         )
+        #     )
         
         # If send_reminder is False, set reminder_time to None
         if 'send_reminder' in data and not data.get('send_reminder'):
-            data['reminder_time'] = None
+            data['reminder_days_ahead'] = None
+            data['reminder_hour'] = None
+            data['reminder_minute'] = None
+            data['reminder_ampm'] = None
             
         return data 

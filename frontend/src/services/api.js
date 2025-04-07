@@ -48,6 +48,9 @@ export const subscriptionsAPI = {
   getCanceled: () => 
     apiClient.get('/subscriptions/canceled/'),
   
+  getCancelled: () => 
+    apiClient.get('/subscriptions/cancelled/'),
+  
   create: (subscriptionData) => 
     apiClient.post('/subscriptions/', subscriptionData),
   

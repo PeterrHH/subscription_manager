@@ -13,6 +13,7 @@ urlpatterns = [
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('add/', views.subscription_form, name='subscription_form'),
     path('add-api/', views.add_subscription_api, name='add_subscription_api'),
+    path('subscriptions/cancelled/', views.get_cancelled, name='get-cancelled-subscriptions'),
     path('', views.home, name='home'),
     path('signup/', views.signup, name='signup'),
     path('', include(router.urls)),

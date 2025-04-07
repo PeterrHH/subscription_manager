@@ -11,9 +11,12 @@ import {
   Link as ChakraLink,
   Alert,
   AlertIcon,
+  useToast,
 } from '@chakra-ui/react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { FormHelperText } from '@chakra-ui/react'; // import this
+import { authAPI } from '../services/api'; // Assume this is your API service
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -28,6 +31,7 @@ const Register = () => {
   
   const { register } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,12 +53,25 @@ const Register = () => {
 
     setIsLoading(true);
     try {
-      await register(formData.username, formData.email, formData.password);
-      setSuccess('Registration Successful');
-      // Redirect to dashboard after successful registration
-      setTimeout(() => navigate('/'), 1000);
+      const response = await authAPI.register(formData);
+      toast({
+        title: 'Success',
+        description: response.data.detail || 'Registration successful',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      navigate('/login');
     } catch (error) {
-      setError(error.response?.data?.detail || 'Registration failed. Please try again.');
+      const errorMessage = error.response?.data || 'Registration failed';
+      setError(JSON.stringify(errorMessage)); // Display detailed errors
+      toast({
+        title: 'Error',
+        description: 'Registration failed',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -114,6 +131,9 @@ const Register = () => {
                 placeholder="Create a password"
                 bg="white"
               />
+                <FormHelperText>
+                Password must be at least 8 characters and cannot be all numbers.
+              </FormHelperText>
             </FormControl>
 
             <FormControl isRequired>

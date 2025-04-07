@@ -38,9 +38,12 @@ const AddSubscription = () => {
     category: 'OTHER',
     management_link: '',
     send_reminder: false,
-    reminder_days_ahead: 0, // New field for days ahead
-    reminder_hour: '', // New field for hour
-    reminder_minute: '', // New field for minute
+    reminder_days_ahead: 1,
+    reminder_hour: 9,
+    reminder_minute: 0,
+    reminder_ampm: 'AM',
+    free_trial_length: 0,
+    free_trial_unit: 'DAYS',
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -59,8 +62,7 @@ const AddSubscription = () => {
     setFormData(prev => ({ ...prev, price: value }));
   };
 
-  const handleTimeChange = (e) => {
-    const { name, value } = e.target;
+  const handleTimeChange = (name, value) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -136,11 +138,39 @@ const AddSubscription = () => {
                   onChange={handleChange}
                 >
                   <option value="PAID">Paid</option>
-                  <option value="FREE">Free</option>
+                  <option value="FREE_TRIAL">Free Trial</option>
                 </Select>
               </FormControl>
 
-              <FormControl isRequired>
+              {formData.subscription_type === 'FREE_TRIAL' && (
+                <FormControl>
+                  <FormLabel>Free Trial Length</FormLabel>
+                  <HStack>
+                    <NumberInput
+                      min={0}
+                      value={formData.free_trial_length}
+                      onChange={(value) => setFormData({ ...formData, free_trial_length: value })}
+                    >
+                      <NumberInputField placeholder="Enter length" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                    <Select
+                      name="free_trial_unit"
+                      value={formData.free_trial_unit}
+                      onChange={handleChange}
+                    >
+                      <option value="DAYS">Days</option>
+                      <option value="MONTHS">Months</option>
+                    </Select>
+                  </HStack>
+                  <FormHelperText>Specify the length of the free trial.</FormHelperText>
+                </FormControl>
+              )}
+
+              <FormControl isRequired={formData.subscription_type === 'PAID'}>
                 <FormLabel>Price</FormLabel>
                 <NumberInput
                   min={0}
@@ -154,7 +184,9 @@ const AddSubscription = () => {
                     <NumberDecrementStepper />
                   </NumberInputStepper>
                 </NumberInput>
-                <FormHelperText>Enter the subscription price</FormHelperText>
+                <FormHelperText>
+                  {formData.subscription_type === 'PAID' ? 'Enter the subscription price' : 'Price is optional for Free Trial'}
+                </FormHelperText>
               </FormControl>
 
               <FormControl isRequired>
@@ -223,7 +255,8 @@ const AddSubscription = () => {
                   <FormControl>
                     <FormLabel>Days Ahead for Reminder</FormLabel>
                     <NumberInput
-                      min={0}
+                      min={1}
+                      max={formData.subscription_type === 'FREE_TRIAL' ? formData.free_trial_length : undefined}
                       value={formData.reminder_days_ahead}
                       onChange={(value) => setFormData({ ...formData, reminder_days_ahead: value })}
                     >
@@ -239,31 +272,41 @@ const AddSubscription = () => {
                   <FormControl>
                     <FormLabel>Reminder Time</FormLabel>
                     <HStack>
-                      <Select
-                        name="reminder_hour"
+                      <NumberInput
+                        min={1}
+                        max={12}
                         value={formData.reminder_hour}
-                        onChange={handleTimeChange}
+                        onChange={(value) => handleTimeChange('reminder_hour', value)}
                       >
-                        {Array.from({ length: 24 }, (_, i) => (
-                          <option key={i} value={i}>
-                            {i.toString().padStart(2, '0')}
-                          </option>
-                        ))}
-                      </Select>
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
                       <Text>:</Text>
-                      <Select
-                        name="reminder_minute"
+                      <NumberInput
+                        min={0}
+                        max={59}
                         value={formData.reminder_minute}
-                        onChange={handleTimeChange}
+                        onChange={(value) => handleTimeChange('reminder_minute', value)}
                       >
-                        {Array.from({ length: 60 }, (_, i) => (
-                          <option key={i} value={i}>
-                            {i.toString().padStart(2, '0')}
-                          </option>
-                        ))}
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                      <Select
+                        name="reminder_ampm"
+                        value={formData.reminder_ampm}
+                        onChange={handleChange}
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
                       </Select>
                     </HStack>
-                    <FormHelperText>Select the exact time for the reminder.</FormHelperText>
+                    <FormHelperText>Select the reminder time (12-hour format).</FormHelperText>
                   </FormControl>
                 </>
               )}

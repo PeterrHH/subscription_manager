@@ -56,7 +56,7 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         subscription = self.get_object()
-        subscription.status = 'CANCELED'
+        subscription.status = 'CANCELLED'
         subscription.cancellation_date = timezone.now().date()
         subscription.save()
         return Response(
@@ -84,4 +84,36 @@ def add_subscription_api(request):
     if serializer.is_valid():
         serializer.save(user=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    print(f"ERROR {serializer.errors} -------------")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_cancelled(request):
+    """
+    Retrieve all cancelled subscriptions for the authenticated user,
+    ordered by cancellation date (most recent first)
+    """
+    print(f"GETTING CANCELLED SUBSCRIPTIONS -------------")
+    try:
+        # Get cancelled subscriptions for the current user
+        cancelled_subscriptions = Subscription.objects.filter(
+            user=request.user,
+            status='CANCELLED'
+        ).order_by('-cancellation_date')  # Order by cancellation date, most recent first
+        print(f"CANCELLED SUBSCRIPTIONS {cancelled_subscriptions}")
+        # Serialize the data
+        serializer = SubscriptionSerializer(cancelled_subscriptions, many=True)
+        
+        return Response({
+            'cancelled_subscriptions': serializer.data,
+            'count': cancelled_subscriptions.count()
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"ERROR {e} -------------")
+        return Response({
+            'error': 'Failed to retrieve cancelled subscriptions',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

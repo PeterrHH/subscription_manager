@@ -30,8 +30,8 @@ const EditSubscription = () => {
   const navigate = useNavigate();
   const toast = useToast();
   
-  // Initialize with data passed via location state or empty values
-  const initialData = location.state?.subscription || {
+  // Update initialData with default reminder values
+  const initialData = {
     service_name: '',
     subscription_type: 'PAID',
     price: '',
@@ -41,22 +41,37 @@ const EditSubscription = () => {
     category: 'OTHER',
     management_link: '',
     send_reminder: false,
-    reminder_time: 'SAME_DAY',
+    reminder_days_ahead: 1,
+    reminder_hour: 9,
+    reminder_minute: 0,
+    reminder_ampm: 'AM',
   };
   
-  const [formData, setFormData] = useState(initialData);
+  const [formData, setFormData] = useState(
+    location.state?.subscription || initialData
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Fetch subscription data if not provided in location state
+  // Update useEffect to properly set the reminder values
   useEffect(() => {
     if (!location.state?.subscription && id) {
       const fetchSubscription = async () => {
         try {
           setIsLoading(true);
           const response = await subscriptionsAPI.getById(id);
-          setFormData(response.data);
+          const subscriptionData = response.data;
+          
+          // Ensure reminder settings are properly set from existing data
+          setFormData({
+            ...subscriptionData,
+            reminder_days_ahead: subscriptionData.reminder_days_ahead || 1,
+            reminder_hour: subscriptionData.reminder_hour || 9,
+            reminder_minute: subscriptionData.reminder_minute || 0,
+            reminder_ampm: subscriptionData.reminder_ampm || 'AM',
+            send_reminder: Boolean(subscriptionData.send_reminder)
+          });
         } catch (error) {
           setError('Failed to fetch subscription details');
           toast({
@@ -86,7 +101,21 @@ const EditSubscription = () => {
 
   const handleSwitchChange = (e) => {
     const { name, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: checked }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: checked,
+      // Only set default values if there are no existing values
+      ...(name === 'send_reminder' && checked && !prev.reminder_days_ahead ? {
+        reminder_days_ahead: 1,
+        reminder_hour: 9,
+        reminder_minute: 0,
+        reminder_ampm: 'AM'
+      } : {})
+    }));
+  };
+
+  const handleTimeChange = (name, value) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -161,11 +190,11 @@ const EditSubscription = () => {
                   onChange={handleChange}
                 >
                   <option value="PAID">Paid</option>
-                  <option value="FREE">Free</option>
+                  <option value="FREE_TRIAL">Free Trial</option>
                 </Select>
               </FormControl>
 
-              <FormControl isRequired>
+              <FormControl isRequired={formData.subscription_type === 'PAID'}>
                 <FormLabel>Price</FormLabel>
                 <NumberInput
                   min={0}
@@ -179,7 +208,9 @@ const EditSubscription = () => {
                     <NumberDecrementStepper />
                   </NumberInputStepper>
                 </NumberInput>
-                <FormHelperText>Enter the subscription price</FormHelperText>
+                <FormHelperText>
+                  {formData.subscription_type === 'PAID' ? 'Enter the subscription price' : 'Price is optional for Free Trial'}
+                </FormHelperText>
               </FormControl>
 
               <FormControl isRequired>
@@ -245,20 +276,65 @@ const EditSubscription = () => {
               </FormControl>
 
               {formData.send_reminder && (
-                <FormControl>
-                  <FormLabel>Reminder Time</FormLabel>
-                  <Select
-                    name="reminder_time"
-                    value={formData.reminder_time || 'SAME_DAY'}
-                    onChange={handleChange}
-                  >
-                    <option value="SAME_DAY">On the morning of due date</option>
-                    <option value="ONE_DAY">1 day ahead</option>
-                    <option value="TWO_DAYS">2 days ahead</option>
-                    <option value="THREE_DAYS">3 days ahead</option>
-                    <option value="ONE_WEEK">1 week ahead</option>
-                  </Select>
-                </FormControl>
+                <>
+                  <FormControl>
+                    <FormLabel>Days Ahead for Reminder</FormLabel>
+                    <NumberInput
+                      min={1}
+                      max={formData.subscription_type === 'FREE_TRIAL' ? formData.free_trial_length : undefined}
+                      value={formData.reminder_days_ahead}
+                      onChange={(value) => setFormData({ ...formData, reminder_days_ahead: value })}
+                    >
+                      <NumberInputField placeholder="Enter number of days" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                    <FormHelperText>Set how many days ahead of the due date to send the reminder.</FormHelperText>
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Reminder Time</FormLabel>
+                    <HStack>
+                      <NumberInput
+                        min={1}
+                        max={12}
+                        value={formData.reminder_hour}
+                        defaultValue={formData.reminder_hour}
+                        onChange={(value) => handleTimeChange('reminder_hour', value)}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                      <Text>:</Text>
+                      <NumberInput
+                        min={0}
+                        max={59}
+                        value={formData.reminder_minute}
+                        onChange={(value) => handleTimeChange('reminder_minute', value)}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                      <Select
+                        name="reminder_ampm"
+                        value={formData.reminder_ampm}
+                        onChange={handleChange}
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </Select>
+                    </HStack>
+                    <FormHelperText>Select the reminder time (12-hour format).</FormHelperText>
+                  </FormControl>
+                </>
               )}
 
               <HStack spacing={4} justify="flex-end">

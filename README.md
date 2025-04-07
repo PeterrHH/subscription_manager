@@ -89,3 +89,10 @@ The application will be available at:
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details. 
+
+
+### Current Issue and improvement
+- Not extracting cancellation date correctly
+- Restoring subscription
+- Sending email for reminder
+- Correctly set up registration process

@@ -22,13 +22,20 @@ import {
 import { ExternalLinkIcon, EditIcon } from '@chakra-ui/icons';
 import { useNavigate } from 'react-router-dom';
 
-const SubscriptionCard = ({ subscription, onCancel, onEdit }) => {
+const SubscriptionCard = ({ 
+  subscription, 
+  onCancel, 
+  onRestore, 
+  isCancelled = false,
+  showEditButton = true 
+}) => {
   const { 
     id, 
     service_name, 
     price, 
     billing_cycle, 
-    next_charge_date, 
+    next_charge_date,
+    cancellation_date,
     category, 
     management_link,
     send_reminder,
@@ -39,6 +46,7 @@ const SubscriptionCard = ({ subscription, onCancel, onEdit }) => {
   const navigate = useNavigate();
 
   const formatDate = (dateString) => {
+    console.log("DATE STRING {}",dateString);
     if (!dateString) return 'Not available';
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
@@ -60,14 +68,6 @@ const SubscriptionCard = ({ subscription, onCancel, onEdit }) => {
   const confirmCancel = () => {
     onCancel(id);
     onClose();
-  };
-
-  const handleEditClick = () => {
-    if (onEdit) {
-      onEdit(subscription);
-    } else {
-      navigate(`/edit/${id}`, { state: { subscription } });
-    }
   };
 
   const getReminderText = () => {
@@ -105,7 +105,7 @@ const SubscriptionCard = ({ subscription, onCancel, onEdit }) => {
             position="absolute"
             top={2}
             right={2}
-            onClick={handleEditClick}
+            onClick={() => navigate(`/edit/${id}`)}
           />
         </Tooltip>
         
@@ -124,7 +124,11 @@ const SubscriptionCard = ({ subscription, onCancel, onEdit }) => {
         </Text>
         
         <Text color="gray.600" mb={2}>
-          Next charge: {formatDate(next_charge_date)}
+          {isCancelled ? (
+            `Cancelled on: ${formatDate(cancellation_date)}`
+          ) : (
+            `Next charge: ${formatDate(next_charge_date)}`
+          )}
         </Text>
         
         {getReminderText() && (
@@ -145,14 +149,33 @@ const SubscriptionCard = ({ subscription, onCancel, onEdit }) => {
               Manage
             </Button>
           )}
-          <Button
-            size="sm"
-            colorScheme="red"
-            variant="outline"
-            onClick={handleCancelClick}
-          >
-            Cancel
-          </Button>
+          {!isCancelled && showEditButton && (
+            <Button
+              size="sm"
+              colorScheme="blue"
+              onClick={() => navigate(`/edit/${id}`)}
+            >
+              Edit
+            </Button>
+          )}
+          
+          {isCancelled ? (
+            <Button
+              size="sm"
+              colorScheme="green"
+              onClick={() => onRestore && onRestore(subscription)}
+            >
+              Restore
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              colorScheme="red"
+              onClick={() => onCancel && onCancel(id)}
+            >
+              Cancel
+            </Button>
+          )}
         </HStack>
       </Box>
 

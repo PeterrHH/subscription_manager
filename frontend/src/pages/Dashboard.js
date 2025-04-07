@@ -18,7 +18,7 @@ import {
   AlertIcon,
   AlertTitle,
 } from '@chakra-ui/react';
-import { AddIcon } from '@chakra-ui/icons';
+import { AddIcon, ArrowBackIcon } from '@chakra-ui/icons';
 import { useNavigate } from 'react-router-dom';
 import SubscriptionCard from '../components/SubscriptionCard';
 import { subscriptionsAPI } from '../services/api';
@@ -41,6 +41,7 @@ const Dashboard = () => {
         // Try to fetch from API, fall back to mock data if API fails
         try {
           const response = await subscriptionsAPI.getActive();
+          console.log('Getting active subscriptions:', response);
           setSubscriptions(response.data);
         } catch (apiError) {
           console.error('API error, using mock data:', apiError);
@@ -111,13 +112,21 @@ const Dashboard = () => {
       <VStack spacing={8} align="stretch">
         <Flex justify="space-between" align="center">
           <Heading size="lg">Active Subscriptions</Heading>
-          <Button
-            leftIcon={<AddIcon />}
-            colorScheme="purple"
-            onClick={handleAddSubscription}
-          >
-            Add Subscription
-          </Button>
+          <HStack spacing={4}>
+            <Button
+              colorScheme="gray"
+              onClick={() => navigate('/cancelled')}
+            >
+              View Cancelled
+            </Button>
+            <Button
+              leftIcon={<AddIcon />}
+              colorScheme="purple"
+              onClick={handleAddSubscription}
+            >
+              Add Subscription
+            </Button>
+          </HStack>
         </Flex>
 
         {/* Stats Section */}
