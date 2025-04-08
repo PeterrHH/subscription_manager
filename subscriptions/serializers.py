@@ -18,6 +18,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'category',
             'management_link',
             'send_reminder',
+            'cancellation_date',
             'reminder_days_ahead',
             'reminder_hour',
             'reminder_minute',

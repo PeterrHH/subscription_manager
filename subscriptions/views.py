@@ -101,10 +101,11 @@ def get_cancelled(request):
             user=request.user,
             status='CANCELLED'
         ).order_by('-cancellation_date')  # Order by cancellation date, most recent first
-        print(f"CANCELLED SUBSCRIPTIONS {cancelled_subscriptions}")
+        print(f"CANCELLED SUBSCRIPTIONS {cancelled_subscriptions.values()}")
         # Serialize the data
         serializer = SubscriptionSerializer(cancelled_subscriptions, many=True)
-        
+        print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(f"SERIALIZER {serializer.data}")
         return Response({
             'cancelled_subscriptions': serializer.data,
             'count': cancelled_subscriptions.count()

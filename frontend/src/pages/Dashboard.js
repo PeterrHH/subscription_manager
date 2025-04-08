@@ -103,6 +103,8 @@ const Dashboard = () => {
       return total + (parseFloat(sub.price) * 12);
     } else if (sub.billing_cycle === 'YEARLY') {
       return total + parseFloat(sub.price);
+    } else if (sub.billing_cycle === 'WEEKLY') {
+      return total + (parseFloat(sub.price) * 52);
     }
     return total;
   }, 0);

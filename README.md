@@ -91,8 +91,9 @@ The application will be available at:
 This project is licensed under the MIT License - see the LICENSE file for details. 
 
 
-### Current Issue and improvement
-- Not extracting cancellation date correctly
+## Current Issue and improvement
+- Not extracting cancellation date correctly  ✅
+- Fixing total cost calculation  ✅
 - Restoring subscription
 - Sending email for reminder
 - Correctly set up registration process

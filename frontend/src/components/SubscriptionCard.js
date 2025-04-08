@@ -97,19 +97,8 @@ const SubscriptionCard = ({
         _hover={{ shadow: 'md' }}
         position="relative"
       >
-        <Tooltip label="Edit subscription">
-          <IconButton
-            icon={<EditIcon />}
-            size="sm"
-            aria-label="Edit subscription"
-            position="absolute"
-            top={2}
-            right={2}
-            onClick={() => navigate(`/edit/${id}`)}
-          />
-        </Tooltip>
         
-        <Flex justify="space-between" align="flex-start" mb={3} mt={6}>
+        <Flex justify="space-between" align="flex-start" mb={3}>
           <Heading size="md" fontWeight="semibold">{service_name}</Heading>
           <Badge colorScheme={getCategoryColor(category)}>
             {category.toLowerCase()}
