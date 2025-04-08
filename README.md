@@ -92,8 +92,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 
 ## Current Issue and improvement
-- Not extracting cancellation date correctly  ✅
+- Extract cancellation date correctly  ✅
 - Fixing total cost calculation  ✅
-- Restoring subscription
+- When editing in the restore Page, and i cancel, it sohuld go back to the cancel dashboard.✅
 - Sending email for reminder
 - Correctly set up registration process

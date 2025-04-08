@@ -63,7 +63,8 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             {'message': f'{subscription.service_name} has been canceled'},
             status=status.HTTP_200_OK
         )
-
+    
+    
     @action(detail=False, methods=['get'])
     def active(self, request):
         active_subs = self.get_queryset().filter(status='ACTIVE')

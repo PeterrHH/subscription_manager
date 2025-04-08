@@ -67,7 +67,8 @@ const CancelledSubscriptions = () => {
           ...subscription,
           status: 'ACTIVE',
           cancellation_date: null
-        }
+        },
+        fromCancelled: true
       }
     });
   };

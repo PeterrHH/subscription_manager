@@ -30,6 +30,9 @@ const EditSubscription = () => {
   const navigate = useNavigate();
   const toast = useToast();
   
+  // Check if we came from the cancelled page
+  const cameFromCancelled = location.state?.fromCancelled === true;
+
   // Update initialData with default reminder values
   const initialData = {
     service_name: '',
@@ -147,6 +150,15 @@ const EditSubscription = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCancelClick = () => {
+    // Navigate back based on where the user came from
+    if (cameFromCancelled) {
+      navigate('/cancelled'); 
+    } else {
+      navigate('/'); // Default back to dashboard
     }
   };
 
@@ -340,7 +352,7 @@ const EditSubscription = () => {
               <HStack spacing={4} justify="flex-end">
                 <Button
                   variant="outline"
-                  onClick={() => navigate('/')}
+                  onClick={handleCancelClick}
                 >
                   Cancel
                 </Button>
