@@ -22,7 +22,7 @@ import { AddIcon, ArrowBackIcon } from '@chakra-ui/icons';
 import { useNavigate } from 'react-router-dom';
 import SubscriptionCard from '../components/SubscriptionCard';
 import { subscriptionsAPI } from '../services/api';
-import { mockSubscriptions } from '../mockData'; // Fallback for development
+// import { mockSubscriptions } from '../mockData'; // Fallback for development
 
 const Dashboard = () => {
   const [subscriptions, setSubscriptions] = useState([]);
@@ -46,7 +46,7 @@ const Dashboard = () => {
         } catch (apiError) {
           console.error('API error, using mock data:', apiError);
           // Fall back to mock data for development
-          setSubscriptions(mockSubscriptions);
+          // setSubscriptions(mockSubscriptions);
         }
         
         setIsLoading(false);
@@ -93,6 +93,8 @@ const Dashboard = () => {
       return total + parseFloat(sub.price);
     } else if (sub.billing_cycle === 'YEARLY') {
       return total + (parseFloat(sub.price) / 12);
+    } else if (sub.billing_cycle === 'WEEKLY') {
+      return total + (parseFloat(sub.price) * 4);
     }
     return total;
   }, 0);

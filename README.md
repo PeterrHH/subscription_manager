@@ -95,5 +95,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Extract cancellation date correctly  ✅
 - Fixing total cost calculation  ✅
 - When editing in the restore Page, and i cancel, it sohuld go back to the cancel dashboard.✅
+- Direct to login page when starting the operation ✅
 - Sending email for reminder
 - Correctly set up registration process
+- Set up CICD pipeline

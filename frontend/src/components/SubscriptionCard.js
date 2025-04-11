@@ -120,7 +120,7 @@ const SubscriptionCard = ({
           )}
         </Text>
         
-        {getReminderText() && (
+        {!isCancelled && getReminderText() && (
           <Text color="blue.600" fontSize="sm" mb={4}>
             {getReminderText()}
           </Text>
