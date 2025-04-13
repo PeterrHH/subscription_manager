@@ -23,6 +23,7 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
+        print(f"Validated data is {validated_data}----")
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
@@ -33,6 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
+    print(f"======Request data is {request.data}=======")
     serializer = UserSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
@@ -42,7 +44,7 @@ def register(request):
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }, status=status.HTTP_201_CREATED)
-    print(f"Error i Registering is {serializer.errors}")
+    print(f"Error i Registering is {serializer.errors} data is {request.data}")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])

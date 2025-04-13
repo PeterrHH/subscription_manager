@@ -53,7 +53,11 @@ const Register = () => {
 
     setIsLoading(true);
     try {
-      const response = await authAPI.register(formData);
+      const response = await authAPI.register(
+        formData.username,
+        formData.email,
+        formData.password
+      );
       toast({
         title: 'Success',
         description: response.data.detail || 'Registration successful',
@@ -64,7 +68,7 @@ const Register = () => {
       navigate('/login');
     } catch (error) {
       const errorMessage = error.response?.data || 'Registration failed';
-      setError(JSON.stringify(errorMessage)); // Display detailed errors
+      setError(JSON.stringify(errorMessage));
       toast({
         title: 'Error',
         description: 'Registration failed',
