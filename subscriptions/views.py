@@ -77,11 +77,35 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(canceled_subs, many=True)
         return Response(serializer.data)
 
+    def destroy(self, request, *args, **kwargs):
+        """Only allow deletion of cancelled subscriptions"""
+        subscription = self.get_object()
+        if subscription.status != 'CANCELLED':
+            return Response(
+                {'detail': 'Only cancelled subscriptions can be deleted'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=['delete'])
+    def delete_all_cancelled(self, request):
+        """Delete all cancelled subscriptions for the current user"""
+        deleted_count = Subscription.objects.filter(
+            user=request.user,
+            status='CANCELLED'
+        ).delete()[0]
+        
+        return Response({
+            'message': f'Deleted {deleted_count} cancelled subscriptions',
+            'count': deleted_count
+        })
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def add_subscription_api(request):
     """API endpoint to add a subscription"""
     serializer = SubscriptionSerializer(data=request.data)
+    print(f" -- Serializer {serializer} -- ")
     if serializer.is_valid():
         serializer.save(user=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

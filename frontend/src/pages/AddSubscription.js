@@ -42,7 +42,7 @@ const AddSubscription = () => {
     reminder_hour: 9,
     reminder_minute: 0,
     reminder_ampm: 'AM',
-    free_trial_length: 0,
+    free_trial_length: 1,
     free_trial_unit: 'DAYS',
   });
 
@@ -147,7 +147,7 @@ const AddSubscription = () => {
                   <FormLabel>Free Trial Length</FormLabel>
                   <HStack>
                     <NumberInput
-                      min={0}
+                      min={1}
                       value={formData.free_trial_length}
                       onChange={(value) => setFormData({ ...formData, free_trial_length: value })}
                     >

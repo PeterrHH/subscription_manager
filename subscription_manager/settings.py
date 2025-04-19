@@ -164,3 +164,32 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Change this to your email provider's SMTP server
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'CleanSub@yahoo.com'  # Your email address
+EMAIL_HOST_PASSWORD = 'Poladipo0406**'  # Your email password or app password
+DEFAULT_FROM_EMAIL = 'CleanSub@yahoo.com'  # Your email address
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+# Celery Beat Schedule
+CELERY_BEAT_SCHEDULE = {
+    'check-upcoming-subscriptions': {
+        'task': 'subscriptions.tasks.check_upcoming_subscriptions',
+        'schedule': timedelta(hours=1),  # Run every hour
+    },
+    'check-pending-reminders': {
+        'task': 'subscriptions.tasks.check_pending_reminders',
+        'schedule': timedelta(minutes=5),  # Run every 5 minutes
+    },
+}

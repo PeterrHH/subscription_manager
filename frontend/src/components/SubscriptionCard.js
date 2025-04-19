@@ -19,13 +19,14 @@ import {
   IconButton,
   Tooltip,
 } from '@chakra-ui/react';
-import { ExternalLinkIcon, EditIcon } from '@chakra-ui/icons';
+import { ExternalLinkIcon, EditIcon, DeleteIcon } from '@chakra-ui/icons';
 import { useNavigate } from 'react-router-dom';
 
 const SubscriptionCard = ({ 
   subscription, 
   onCancel, 
-  onRestore, 
+  onRestore,
+  onDelete,
   isCancelled = false,
   showEditButton = true 
 }) => {
@@ -40,9 +41,11 @@ const SubscriptionCard = ({
     management_link,
     send_reminder,
     reminder_time,
+    subscription_type,
   } = subscription;
   
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const { isOpen: isCancelOpen, onOpen: onCancelOpen, onClose: onCancelClose } = useDisclosure();
   const navigate = useNavigate();
 
   const formatDate = (dateString) => {
@@ -62,12 +65,12 @@ const SubscriptionCard = ({
   };
 
   const handleCancelClick = () => {
-    onOpen();
+    onCancelOpen();
   };
 
   const confirmCancel = () => {
     onCancel(id);
-    onClose();
+    onCancelClose();
   };
 
   const getReminderText = () => {
@@ -105,27 +108,35 @@ const SubscriptionCard = ({
           </Badge>
         </Flex>
         
-        <Text fontSize="2xl" fontWeight="bold" color="purple.500" mb={2}>
-          ${parseFloat(price).toFixed(2)}
-          <Text as="span" fontSize="sm" color="gray.500" fontWeight="normal">
-            /{billing_cycle.toLowerCase()}
+        {subscription_type === 'FREE_TRIAL' ? (
+          <Text fontSize="xl" fontWeight="bold" color="purple.500" mb={2}>
+            Free Trial
           </Text>
-        </Text>
+        ) : (
+          <Text fontSize="2xl" fontWeight="bold" color="purple.500" mb={2}>
+            ${parseFloat(price).toFixed(2)}
+            <Text as="span" fontSize="sm" color="gray.500" fontWeight="normal">
+              /{billing_cycle.toLowerCase()}
+            </Text>
+          </Text>
+        )}
         
         <Text color="gray.600" mb={2}>
           {isCancelled ? (
             `Cancelled on: ${formatDate(cancellation_date)}`
+          ) : subscription_type === 'FREE_TRIAL' ? (
+            `Trial ends: ${formatDate(next_charge_date)}`
           ) : (
             `Next charge: ${formatDate(next_charge_date)}`
           )}
         </Text>
         
-        {!isCancelled && getReminderText() && (
+        {/* {!isCancelled && getReminderText() && (
           <Text color="blue.600" fontSize="sm" mb={4}>
             {getReminderText()}
           </Text>
         )}
-        
+         */}
         <HStack spacing={4} mt={4}>
           {management_link && (
             <Button
@@ -165,11 +176,22 @@ const SubscriptionCard = ({
               Cancel
             </Button>
           )}
+          
+          {isCancelled && (
+            <Button
+              size="sm"
+              colorScheme="red"
+              variant="solid"
+              onClick={onDeleteOpen}
+              ml="auto"
+            >
+              Remove
+            </Button>
+          )}
         </HStack>
       </Box>
 
-      {/* Confirmation Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
+      <Modal isOpen={isCancelOpen} onClose={onCancelClose}>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Cancel Subscription</ModalHeader>
@@ -178,11 +200,41 @@ const SubscriptionCard = ({
             Are you sure you want to cancel your {service_name} subscription? This will remove it from your active subscriptions.
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
+            <Button variant="ghost" mr={3} onClick={onCancelClose}>
               No, Keep It
             </Button>
             <Button colorScheme="red" onClick={confirmCancel}>
               Yes, Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <Modal isOpen={isDeleteOpen} onClose={onDeleteClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Remove Subscription</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={2} align="stretch">
+              <Text>Are you removing {service_name} subscription?</Text>
+              <Text fontSize="sm" color="red.500">
+                Cannot restore it after removing
+              </Text>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onDeleteClose}>
+              No, Keep It
+            </Button>
+            <Button 
+              colorScheme="red" 
+              onClick={() => {
+                onDelete(id);
+                onDeleteClose();
+              }}
+            >
+              Yes, Remove
             </Button>
           </ModalFooter>
         </ModalContent>

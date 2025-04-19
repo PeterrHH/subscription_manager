@@ -62,6 +62,9 @@ export const subscriptionsAPI = {
   
   delete: (id) => 
     apiClient.delete(`/subscriptions/${id}/`),
+
+  deleteAllCancelled: () => 
+    apiClient.delete('/subscriptions/delete_all_cancelled/'),
 };
 
 export default {

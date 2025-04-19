@@ -89,24 +89,28 @@ const Dashboard = () => {
 
   // Calculate total monthly cost
   const totalMonthlyCost = subscriptions.reduce((total, sub) => {
-    if (sub.billing_cycle === 'MONTHLY') {
-      return total + parseFloat(sub.price);
-    } else if (sub.billing_cycle === 'YEARLY') {
-      return total + (parseFloat(sub.price) / 12);
-    } else if (sub.billing_cycle === 'WEEKLY') {
-      return total + (parseFloat(sub.price) * 4);
+    if (sub.subscription_type == 'PAID') {
+      if (sub.billing_cycle === 'MONTHLY') {
+        return total + parseFloat(sub.price);
+      } else if (sub.billing_cycle === 'YEARLY') {
+        return total + (parseFloat(sub.price) / 12);
+      } else if (sub.billing_cycle === 'WEEKLY') {
+        return total + (parseFloat(sub.price) * 4);
+      }
     }
     return total;
   }, 0);
 
   // Calculate total yearly cost
   const totalYearlyCost = subscriptions.reduce((total, sub) => {
-    if (sub.billing_cycle === 'MONTHLY') {
-      return total + (parseFloat(sub.price) * 12);
-    } else if (sub.billing_cycle === 'YEARLY') {
-      return total + parseFloat(sub.price);
-    } else if (sub.billing_cycle === 'WEEKLY') {
-      return total + (parseFloat(sub.price) * 52);
+    if (sub.subscription_type == 'PAID') {
+      if (sub.billing_cycle === 'MONTHLY') {
+        return total + (parseFloat(sub.price) * 12);
+      } else if (sub.billing_cycle === 'YEARLY') {
+        return total + parseFloat(sub.price);
+      } else if (sub.billing_cycle === 'WEEKLY') {
+        return total + (parseFloat(sub.price) * 52);
+      }
     }
     return total;
   }, 0);

@@ -2,6 +2,10 @@
 
 A full-stack web application for managing subscriptions, built with Django and React.
 
+# Trello Board
+https://trello.com/b/iACNBQCT/subman
+
+
 ## Prerequisites
 
 - Python 3.8 or higher (Ideally Python 11)
@@ -141,11 +145,15 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Fixing total cost calculation ✅
 - When editing in the restore Page, and i cancel, it should go back to the cancel dashboard ✅
 - Direct to login page when starting the operation ✅
+- When Free Trial becomes Paid Subscription 
+
 - Sending email for reminder 
-    - Successfully create the email reminder task.
+    - Successfully create the email reminder task. (After)
     - Successfully cancel the email reminder task when I choose not to use reminder when editing a subscription.
     - Successfully cancel the email reminder task when I remove subscription.
-- Correctly set up registration process  (email verification)
+
 - Have a settings page (reset password, view email and personal info in registration ) Choose default themes etc.
+
+- Correctly set up registration process  (email verification)
 - Set up CICD pipeline
 - Deploy

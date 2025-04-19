@@ -3,13 +3,16 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, URLValidator
 from django.utils import timezone
 from decimal import Decimal
-
+SUBSCRIPTION_TYPES = [
+    ('PAID', 'Paid'),
+    ('FREE_TRIAL', 'Free Trial'),
+]
 
 class Subscription(models.Model):
-    SUBSCRIPTION_TYPES = [
-        ('PAID', 'Paid'),
-        ('FREE_TRIAL', 'Free Trial'),
-    ]
+    # SUBSCRIPTION_TYPES = [
+    #     ('PAID', 'Paid'),
+    #     ('FREE_TRIAL', 'Free Trial'),
+    # ]
     
     BILLING_CYCLES = [
         ('WEEKLY', 'Weekly'),
@@ -125,3 +128,94 @@ class Subscription(models.Model):
                 raise
         
         return None
+
+    def create_event(self, event_type):
+        """Create a new event for this subscription"""
+        print(f"------ Creating event for {self.service_name} Event Type {event_type} ------- ")
+        current_time = timezone.now();
+        return SubscriptionEvent.objects.create(
+            subscription=self,
+            event_type=event_type,
+            event_date=current_time,
+            reminder_sent = self.send_reminder,
+            reminder_date=current_time + timezone.timedelta(days=self.reminder_days_ahead),
+        )
+
+    def update_reminder_event(self):
+        """Update or create reminder event based on send_reminder flag"""
+        # Delete existing reminder event if send_reminder is False
+        if not self.send_reminder:
+            SubscriptionEvent.objects.filter(subscription=self).delete()
+            return
+            
+        # If send_reminder is True, create or update the event
+        event, created = SubscriptionEvent.objects.get_or_create(
+            subscription=self,
+            defaults={'reminder_date': None}  # Will be set below
+        )
+        
+        # Calculate and set the reminder date
+        reminder_date = event.calculate_reminder_date()
+        if reminder_date:
+            event.reminder_date = reminder_date
+            event.reminder_sent = False
+            event.save()
+        else:
+            event.delete()  # Delete if we can't calculate a valid reminder date
+
+    def save(self, *args, **kwargs):
+        # Get the old instance if this is an update
+        old_instance = None
+        if self.pk:
+            old_instance = Subscription.objects.get(pk=self.pk)
+            
+        super().save(*args, **kwargs)
+        
+        # Check if send_reminder was changed
+        if old_instance and old_instance.send_reminder != self.send_reminder:
+            self.update_reminder_event()
+        elif not old_instance and self.send_reminder:  # New subscription with reminders enabled
+            self.update_reminder_event()
+
+    def cancel(self):
+        """Cancel the subscription and remove any reminder events"""
+        self.is_active = False
+        self.save()
+        # Remove any reminder events
+        SubscriptionEvent.objects.filter(subscription=self).delete()
+
+class SubscriptionEvent(models.Model):
+    subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name='events')
+    event_date = models.DateTimeField(auto_now_add=True)
+    reminder_sent = models.BooleanField(default=False)
+    reminder_date = models.DateTimeField(null=True, blank=True)
+    event_type = models.CharField(choices=SUBSCRIPTION_TYPES,max_length=20,default='PAID')
+    
+    class Meta:
+        ordering = ['-event_date']
+    
+    def __str__(self):
+        return f"{self.subscription.service_name} - Reminder scheduled for {self.reminder_date}"
+
+    def calculate_reminder_date(self):
+        """Calculate the reminder date based on subscription settings"""
+        next_charge = self.subscription.get_next_charge_date()
+        if not next_charge:
+            return None
+            
+        # Calculate the reminder date (next_charge_date - reminder_days_ahead)
+        reminder_date = next_charge - timezone.timedelta(days=self.subscription.reminder_days_ahead)
+        
+        # Set the specific hour and minute
+        hour = self.subscription.reminder_hour
+        if self.subscription.reminder_ampm == 'PM' and hour != 12:
+            hour += 12
+        elif self.subscription.reminder_ampm == 'AM' and hour == 12:
+            hour = 0
+            
+        return reminder_date.replace(
+            hour=hour,
+            minute=self.subscription.reminder_minute,
+            second=0,
+            microsecond=0
+        )

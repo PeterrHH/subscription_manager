@@ -33,11 +33,11 @@ const EditSubscription = () => {
   // Check if we came from the cancelled page
   const cameFromCancelled = location.state?.fromCancelled === true;
 
-  // Update initialData with default reminder values
+  // Update initialData to ensure numeric fields have default values
   const initialData = {
     service_name: '',
     subscription_type: 'PAID',
-    price: '',
+    price: 0, // Changed from '' to 0
     billing_cycle: 'MONTHLY',
     start_date: '',
     status: 'ACTIVE',
@@ -48,6 +48,8 @@ const EditSubscription = () => {
     reminder_hour: 9,
     reminder_minute: 0,
     reminder_ampm: 'AM',
+    free_trial_length: 1,
+    free_trial_unit: 'DAYS',
   };
   
   const [formData, setFormData] = useState(
@@ -66,9 +68,11 @@ const EditSubscription = () => {
           const response = await subscriptionsAPI.getById(id);
           const subscriptionData = response.data;
           
-          // Ensure reminder settings are properly set from existing data
+          // Ensure all numeric fields have valid values
           setFormData({
             ...subscriptionData,
+            price: subscriptionData.price || 0,
+            free_trial_length: subscriptionData.free_trial_length || 1,
             reminder_days_ahead: subscriptionData.reminder_days_ahead || 1,
             reminder_hour: subscriptionData.reminder_hour || 9,
             reminder_minute: subscriptionData.reminder_minute || 0,
@@ -98,8 +102,12 @@ const EditSubscription = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Update handlePriceChange to handle null values
   const handlePriceChange = (value) => {
-    setFormData(prev => ({ ...prev, price: value }));
+    setFormData(prev => ({ 
+      ...prev, 
+      price: value === null ? 0 : value 
+    }));
   };
 
   const handleSwitchChange = (e) => {
@@ -162,6 +170,11 @@ const EditSubscription = () => {
     }
   };
 
+  // Add a debug log to help identify null values
+  useEffect(() => {
+    console.log('Form Data:', formData);
+  }, [formData]);
+
   return (
     <Box maxW="container.md" mx="auto" py={8} px={4}>
       <Box bg="white" p={8} borderRadius="lg" shadow="sm">
@@ -206,12 +219,40 @@ const EditSubscription = () => {
                 </Select>
               </FormControl>
 
+              {formData.subscription_type === 'FREE_TRIAL' && (
+                <FormControl>
+                  <FormLabel>Free Trial Length</FormLabel>
+                  <HStack>
+                    <NumberInput
+                      min={1}
+                      value={formData.free_trial_length || 1}
+                      onChange={(value) => setFormData({ ...formData, free_trial_length: value || 1 })}
+                    >
+                      <NumberInputField placeholder="Enter length" />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                    <Select
+                      name="free_trial_unit"
+                      value={formData.free_trial_unit}
+                      onChange={handleChange}
+                    >
+                      <option value="DAYS">Days</option>
+                      <option value="MONTHS">Months</option>
+                    </Select>
+                  </HStack>
+                  <FormHelperText>Specify the length of the free trial.</FormHelperText>
+                </FormControl>
+              )}
+
               <FormControl isRequired={formData.subscription_type === 'PAID'}>
                 <FormLabel>Price</FormLabel>
                 <NumberInput
                   min={0}
                   precision={2}
-                  value={formData.price}
+                  value={formData.price || 0}
                   onChange={handlePriceChange}
                 >
                   <NumberInputField placeholder="Enter amount" />
@@ -294,8 +335,8 @@ const EditSubscription = () => {
                     <NumberInput
                       min={1}
                       max={formData.subscription_type === 'FREE_TRIAL' ? formData.free_trial_length : undefined}
-                      value={formData.reminder_days_ahead}
-                      onChange={(value) => setFormData({ ...formData, reminder_days_ahead: value })}
+                      value={formData.reminder_days_ahead || 1}
+                      onChange={(value) => setFormData({ ...formData, reminder_days_ahead: value || 1 })}
                     >
                       <NumberInputField placeholder="Enter number of days" />
                       <NumberInputStepper>
