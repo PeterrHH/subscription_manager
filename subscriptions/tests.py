@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
-from .models import Subscription
+from .models import Subscription, SubscriptionEvent
 from .serializers import SubscriptionSerializer
 
 class SubscriptionModelTests(TestCase):
@@ -331,38 +331,225 @@ class DeletedSubscriptionTests(APITestCase):
         self.assertIsNone(restored_subscription.cancellation_date)
 
 
-# class FreeTrialEventTests(APITestCase):
-#     def setUp(self):
-#         self.user = User.objects.create_user(
-#             username='testuser',
-#             email='test@example.com',
-#             password='testpass123'
-#         )
-#         self.client = APIClient()
-#         self.client.force_authenticate(user=self.user)
+class FreeTrialEventTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
         
-#         # Create base subscription data
-#         self.no_reminder_subscription_data = {
-#             'service_name': 'Netflix',
-#             'subscription_type': 'FREE_TRIAL',
-#             'price': '9.99',
-#             'billing_cycle': 'MONTHLY',
-#             'start_date': timezone.now().date(),
-#             'category': 'STREAMING',
-#             'status': 'ACTIVE'
-#         }
+        # Create base subscription data
+        self.no_reminder_subscription_data = {
+            'service_name': 'Netflix',
+            'subscription_type': 'FREE_TRIAL',
+            'price': '9.99',
+            'billing_cycle': 'MONTHLY',
+            'start_date': timezone.now().date(),
+            'category': 'STREAMING',
+            'status': 'ACTIVE',
+            'free_trial_length': 30,
+            'free_trial_unit': 'DAYS'
+        }
 
-#         self.with_reminder_subscription_data = {
-#             'service_name': 'Youtube',
-#             'subscription_type': 'FREE_TRIAL',
-#             'price': '9.99',
-#             'billing_cycle': 'MONTHLY',
-#             'start_date': timezone.now().date(),
-#             'category': 'STREAMING',
-#             'status': 'ACTIVE',
-#             'send_reminder': True,
-#             'reminder_days_ahead': 1,
-#             'reminder_hour': 9,
-#             'reminder_minute': 0,
-#             'reminder_ampm': 'AM'
-#         }
+        self.with_reminder_subscription_data = {
+            'service_name': 'Youtube',
+            'subscription_type': 'FREE_TRIAL',
+            'price': '9.99',
+            'billing_cycle': 'MONTHLY',
+            'start_date': timezone.now().date(),
+            'category': 'STREAMING',
+            'status': 'ACTIVE',
+            'free_trial_length': 30,
+            'free_trial_unit': 'DAYS',
+            'send_reminder': True,
+            'reminder_days_ahead': 1,
+            'reminder_hour': 9,
+            'reminder_minute': 0,
+            'reminder_ampm': 'AM'
+        }
+
+        self.with_reminder_subscription_data_monthly = {
+            'service_name': 'Youtube',
+            'subscription_type': 'FREE_TRIAL',
+            'price': '9.99',
+            'billing_cycle': 'MONTHLY',
+            'start_date': timezone.now().date(),
+            'category': 'STREAMING',
+            'status': 'ACTIVE',
+            'free_trial_length': 2,
+            'free_trial_unit': 'MONTHS',
+            'send_reminder': True,
+            'reminder_days_ahead': 5,
+            'reminder_hour': 9,
+            'reminder_minute': 0,
+            'reminder_ampm': 'AM'
+        }
+
+
+    def test_free_trial_event_creation_no_reminder(self):
+        """Test that creating a free trial subscription creates an event without reminder"""
+        response = self.client.post('/api/subscriptions/', self.no_reminder_subscription_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        subscription = Subscription.objects.get(service_name='Netflix')
+        event = SubscriptionEvent.objects.get(subscription=subscription)
+        
+        # Calculate expected end date (30 days from start)
+        expected_end_date = subscription.start_date + timezone.timedelta(days=30)
+        self.assertEqual(event.event_type, 'FREE_TRIAL')
+        self.assertEqual(event.event_date.date(), expected_end_date)
+
+    def test_free_trial_event_creation_with_reminder(self):
+        """Test that creating a free trial subscription creates an event with reminder"""
+        response = self.client.post('/api/subscriptions/', self.with_reminder_subscription_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        subscription = Subscription.objects.get(service_name='Youtube')
+        event = SubscriptionEvent.objects.get(subscription=subscription)
+        
+        # Calculate expected end date and reminder date
+        expected_end_date = subscription.start_date + timezone.timedelta(days=30)
+        expected_reminder_date = expected_end_date - timezone.timedelta(days=1)
+        
+        self.assertEqual(event.event_type, 'FREE_TRIAL')
+        self.assertEqual(event.event_date.date(), expected_end_date)
+        self.assertEqual(event.reminder_date.date(), expected_reminder_date)
+
+    def test_free_trial_event_creation_with_reminder_monthly(self):
+        """Test that creating a free trial subscription with monthly unit creates an event with reminder"""
+        response = self.client.post('/api/subscriptions/', self.with_reminder_subscription_data_monthly, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        subscription = Subscription.objects.get(service_name='Youtube')
+        event = SubscriptionEvent.objects.get(subscription=subscription)
+
+        # Calculate expected end date and reminder date
+        expected_end_date = subscription.start_date + timezone.timedelta(months=2)
+        expected_reminder_date = expected_end_date - timezone.timedelta(days=5)
+        
+        self.assertEqual(event.event_type, 'FREE_TRIAL')
+        self.assertEqual(event.event_date.date(), expected_end_date)
+        self.assertEqual(event.reminder_date.date(), expected_reminder_date)
+
+
+
+    def test_free_trial_event_deletion(self):
+        """Test that removing a free trial subscription deletes its event"""
+        # First create a subscription
+        response = self.client.post('/api/subscriptions/', self.no_reminder_subscription_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        subscription_id = response.data['id']
+        
+        # Verify event exists
+        self.assertTrue(SubscriptionEvent.objects.filter(
+            subscription_id=subscription_id,
+            event_type='FREE_TRIAL'
+        ).exists())
+        
+        # Cancel and delete the subscription
+        self.client.post(f'/api/subscriptions/{subscription_id}/cancel/')
+        self.client.delete(f'/api/subscriptions/{subscription_id}/')
+        
+        # Verify event is deleted
+        self.assertFalse(SubscriptionEvent.objects.filter(
+            subscription_id=subscription_id,
+            event_type='FREE_TRIAL'
+        ).exists())
+
+    def test_free_trial_end_time_update(self):
+        """Test that updating free trial length updates the event end time"""
+        response = self.client.post('/api/subscriptions/', self.no_reminder_subscription_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        subscription_id = response.data['id']
+        
+        # Update free trial length
+        update_data = {
+            'free_trial_length': 60,  # Change to 60 days
+            'free_trial_unit': 'DAYS'
+        }
+        response = self.client.patch(f'/api/subscriptions/{subscription_id}/', update_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        event = SubscriptionEvent.objects.get(subscription_id=subscription_id)
+        subscription = Subscription.objects.get(id=subscription_id)
+        expected_end_date = subscription.start_date + timezone.timedelta(days=60)
+        self.assertEqual(event.event_date.date(), expected_end_date)
+
+    def test_free_trial_other_info_update(self):
+        """Test that updating other subscription info doesn't affect the free trial event"""
+        response = self.client.post('/api/subscriptions/', self.no_reminder_subscription_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        subscription_id = response.data['id']
+        
+        original_event = SubscriptionEvent.objects.get(subscription_id=subscription_id)
+        original_event_date = original_event.event_date
+        
+        # Update non-trial related info
+        update_data = {
+            'price': '19.99',
+            'category': 'SOFTWARE'
+        }
+        response = self.client.patch(f'/api/subscriptions/{subscription_id}/', update_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify event date hasn't changed
+        updated_event = SubscriptionEvent.objects.get(subscription_id=subscription_id)
+        self.assertEqual(updated_event.event_date, original_event_date)
+
+    def test_free_trial_event_timing(self):
+        """Test the timing behavior of free trial events"""
+        with self.settings(USE_TZ=True):
+            # Create subscription with start date today
+            response = self.client.post('/api/subscriptions/', self.no_reminder_subscription_data, format='json')
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            subscription_id = response.data['id']
+            
+            # Fast forward to just before trial end
+            future_date = timezone.now() + timezone.timedelta(days=29)
+            with timezone.override(future_date):
+                subscription = Subscription.objects.get(id=subscription_id)
+                self.assertEqual(subscription.status, 'ACTIVE')
+                event = SubscriptionEvent.objects.get(subscription=subscription)
+                self.assertFalse(event.event_date <= timezone.now())
+            
+            # Fast forward to after trial end
+            future_date = timezone.now() + timezone.timedelta(days=31)
+            with timezone.override(future_date):
+                subscription = Subscription.objects.get(id=subscription_id)
+                event = SubscriptionEvent.objects.get(subscription=subscription)
+                self.assertTrue(event.event_date <= timezone.now())
+
+    def test_free_trial_event_creation_monthly_unit(self):
+        """Test that creating a free trial subscription with monthly unit creates correct event"""
+        # Modify subscription data to use monthly unit
+        monthly_trial_data = self.no_reminder_subscription_data.copy()
+        monthly_trial_data.update({
+            'service_name': 'Disney+',
+            'free_trial_length': 1,
+            'free_trial_unit': 'MONTHS'
+        })
+        
+        response = self.client.post('/api/subscriptions/', monthly_trial_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        subscription = Subscription.objects.get(service_name='Disney+')
+        event = SubscriptionEvent.objects.get(subscription=subscription)
+        
+        # Calculate expected end date (1 month from start)
+        # Using the same logic as get_next_charge_date for monthly calculations
+        start = subscription.start_date
+        next_month = start.replace(day=1)
+        try:
+            expected_end_date = next_month.replace(month=next_month.month + 1, day=start.day)
+        except ValueError:
+            # Handle month length differences (e.g., Jan 31 -> Feb 28)
+            if next_month.month == 12:
+                expected_end_date = next_month.replace(year=next_month.year + 1, month=1, day=1)
+            else:
+                expected_end_date = next_month.replace(month=next_month.month + 1, day=1)
+        
+        self.assertEqual(event.event_type, 'FREE_TRIAL')
+        self.assertEqual(event.event_date.date(), expected_end_date)

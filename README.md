@@ -146,7 +146,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - When editing in the restore Page, and i cancel, it should go back to the cancel dashboard ✅
 - Direct to login page when starting the operation ✅
 - When Free Trial becomes Paid Subscription 
-
 - Sending email for reminder 
     - Successfully create the email reminder task. (After)
     - Successfully cancel the email reminder task when I choose not to use reminder when editing a subscription.
