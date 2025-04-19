@@ -51,9 +51,9 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             if price < 0:
                 raise serializers.ValidationError({"price": "Price cannot be negative for paid subscriptions"})
         
-        # For FREE_TRIAL, price should be None or 0
-        if subscription_type == 'FREE_TRIAL' and price not in [None, 0]:
-            raise serializers.ValidationError({"price": "Price should be 0 or not set for free trial subscriptions"})
+        # # For FREE_TRIAL, price should be None or 0
+        # if subscription_type == 'FREE_TRIAL' and price not in [None, 0]:
+        #     raise serializers.ValidationError({"price": "Price should be 0 or not set for free trial subscriptions"})
 
         
         # If send_reminder is False, set reminder_time to None

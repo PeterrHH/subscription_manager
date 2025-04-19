@@ -85,7 +85,6 @@ class Subscription(models.Model):
             
         today = timezone.now().date()
         start = self.start_date
-        
         if self.billing_cycle == 'WEEKLY':
             # Calculate days since start, then find next weekly date
             days_since_start = (today - start).days
@@ -206,6 +205,9 @@ class SubscriptionEvent(models.Model):
         # Calculate the reminder date (next_charge_date - reminder_days_ahead)
         reminder_date = next_charge - timezone.timedelta(days=self.subscription.reminder_days_ahead)
         
+        reminder_datetime = timezone.datetime.combine(reminder_date, timezone.datetime.min.time())
+    
+
         # Set the specific hour and minute
         hour = self.subscription.reminder_hour
         if self.subscription.reminder_ampm == 'PM' and hour != 12:
@@ -213,7 +215,7 @@ class SubscriptionEvent(models.Model):
         elif self.subscription.reminder_ampm == 'AM' and hour == 12:
             hour = 0
             
-        return reminder_date.replace(
+        return reminder_datetime.replace(
             hour=hour,
             minute=self.subscription.reminder_minute,
             second=0,

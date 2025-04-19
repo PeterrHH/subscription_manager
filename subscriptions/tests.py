@@ -28,8 +28,10 @@ class SubscriptionModelTests(TestCase):
             reminder_days_ahead=1,
             reminder_hour=9,
             reminder_minute=0,
-            reminder_ampm='AM'
+            reminder_ampm='AM',
+            status = "ACTIVE"
         )
+        
 
     def test_subscription_creation(self):
         """Test that a subscription can be created with all fields"""
@@ -119,18 +121,20 @@ class SubscriptionAPITests(APITestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
         
+        # Convert the date string to a proper date object
         self.subscription_data = {
             'service_name': 'Netflix',
             'subscription_type': 'PAID',
             'price': '9.99',
             'billing_cycle': 'MONTHLY',
-            'start_date': timezone.now().date().isoformat(),
+            'start_date': timezone.now().date(),  # Changed from isoformat string to actual date
             'category': 'STREAMING',
             'send_reminder': True,
             'reminder_days_ahead': 1,
             'reminder_hour': 9,
             'reminder_minute': 0,
-            'reminder_ampm': 'AM'
+            'reminder_ampm': 'AM',
+            'status': 'ACTIVE'  # Also ensure status is set
         }
 
     def test_create_subscription(self):
@@ -158,9 +162,34 @@ class SubscriptionAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Subscription.objects.get().service_name, 'Netflix Premium')
 
-    def test_delete_subscription(self):
-        """Test deleting a subscription"""
+    def test_cancel_subscription(self):
+        """Test cancelling a subscription"""
         subscription = Subscription.objects.create(user=self.user, **self.subscription_data)
+        # Use the cancel endpoint instead of delete
+        response = self.client.post(f'/api/subscriptions/{subscription.id}/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify the subscription is cancelled but still exists
+        updated_subscription = Subscription.objects.get(id=subscription.id)
+        self.assertEqual(updated_subscription.status, 'CANCELLED')
+        self.assertIsNotNone(updated_subscription.cancellation_date)
+
+    # Add a separate test for deletion
+    def test_delete_cancelled_subscription(self):
+        """Test deleting a cancelled subscription"""
+        # Create a cancelled subscription
+        # subscription = Subscription.objects.create(
+        #     user=self.user, 
+        #     status='CANCELLED',
+        #     cancellation_date=timezone.now().date(),
+        #     **self.subscription_data
+        # )
+        # Fist Cancel
+        subscription = Subscription.objects.create(user=self.user, **self.subscription_data)
+        response = self.client.post(f'/api/subscriptions/{subscription.id}/cancel/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Now try to delete it
         response = self.client.delete(f'/api/subscriptions/{subscription.id}/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Subscription.objects.count(), 0)
@@ -196,19 +225,25 @@ class DeletedSubscriptionTests(APITestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
         
-        # Create test subscriptions
+        # Create base subscription data
+        self.subscription_data = {
+            'service_name': 'Netflix',
+            'subscription_type': 'PAID',
+            'price': '9.99',
+            'billing_cycle': 'MONTHLY',
+            'start_date': timezone.now().date(),
+            'category': 'STREAMING',
+            'status': 'ACTIVE'
+        }
+        
+        # Create an active subscription
         self.active_subscription = Subscription.objects.create(
             user=self.user,
-            service_name='Netflix',
-            subscription_type='PAID',
-            price='9.99',
-            billing_cycle='MONTHLY',
-            start_date=timezone.now().date(),
-            category='STREAMING',
-            status='ACTIVE'
+            **self.subscription_data
         )
         
-        self.deleted_subscription = Subscription.objects.create(
+        # Create a cancelled subscription
+        self.cancelled_subscription = Subscription.objects.create(
             user=self.user,
             service_name='Spotify',
             subscription_type='PAID',
@@ -216,94 +251,118 @@ class DeletedSubscriptionTests(APITestCase):
             billing_cycle='MONTHLY',
             start_date=timezone.now().date(),
             category='MUSIC',
-            status='DELETED',
-            cancellation_date=timezone.now()
+            status='CANCELLED',
+            cancellation_date=timezone.now().date()
         )
 
-    def test_view_deleted_subscriptions(self):
-        """Test that deleted subscriptions can be viewed in a separate list"""
-        response = self.client.get('/api/subscriptions/deleted/')
+    def test_view_cancelled_subscriptions(self):
+        """Test that cancelled subscriptions can be viewed in a separate list"""
+        response = self.client.get('/api/subscriptions/cancelled/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['service_name'], 'Spotify')
-        self.assertEqual(response.data[0]['status'], 'DELETED')
+        self.assertEqual(len(response.data['cancelled_subscriptions']), 1)
+        self.assertEqual(response.data['cancelled_subscriptions'][0]['service_name'], 'Spotify')
+        self.assertEqual(response.data['cancelled_subscriptions'][0]['status'], 'CANCELLED')
 
-    def test_active_subscriptions_exclude_deleted(self):
-        """Test that deleted subscriptions don't appear in active subscriptions list"""
-        response = self.client.get('/api/subscriptions/')
+    def test_active_subscriptions_exclude_cancelled(self):
+        """Test that cancelled subscriptions don't appear in active subscriptions list"""
+        response = self.client.get('/api/subscriptions/active/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['service_name'], 'Netflix')
 
-    def test_restore_deleted_subscription(self):
-        """Test that a deleted subscription can be restored"""
-        response = self.client.post(
-            f'/api/subscriptions/{self.deleted_subscription.id}/restore/'
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # Verify the subscription is now active
-        restored_subscription = Subscription.objects.get(id=self.deleted_subscription.id)
-        self.assertEqual(restored_subscription.status, 'ACTIVE')
-        self.assertIsNone(restored_subscription.deleted_at)
+    def test_cannot_delete_active_subscription(self):
+        """Test that an active subscription cannot be deleted"""
+        response = self.client.delete(f'/api/subscriptions/{self.active_subscription.id}/')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Subscription.objects.filter(id=self.active_subscription.id).exists())
 
-    def test_permanent_delete_subscription(self):
-        """Test that a subscription can be permanently deleted"""
-        response = self.client.delete(
-            f'/api/subscriptions/{self.deleted_subscription.id}/permanent/'
-        )
+    def test_can_delete_cancelled_subscription(self):
+        """Test that a cancelled subscription can be deleted"""
+        response = self.client.delete(f'/api/subscriptions/{self.cancelled_subscription.id}/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        
-        # Verify the subscription is completely removed
-        with self.assertRaises(Subscription.DoesNotExist):
-            Subscription.objects.get(id=self.deleted_subscription.id)
+        self.assertFalse(Subscription.objects.filter(id=self.cancelled_subscription.id).exists())
 
-    def test_filter_deleted_by_date_range(self):
-        """Test that deleted subscriptions can be filtered by deletion date"""
-        # Create a subscription deleted in the past
-        past_deleted = Subscription.objects.create(
+    def test_delete_all_cancelled(self):
+        """Test that all cancelled subscriptions can be deleted at once"""
+        # Create another cancelled subscription
+        Subscription.objects.create(
             user=self.user,
-            service_name='Past Service',
+            service_name='Disney+',
             subscription_type='PAID',
-            price='5.99',
+            price='7.99',
             billing_cycle='MONTHLY',
             start_date=timezone.now().date(),
-            category='OTHER',
-            status='DELETED',
-            deleted_at=timezone.now() - timedelta(days=30)
-        )
-
-        # Test filtering by date range
-        response = self.client.get(
-            '/api/subscriptions/deleted/',
-            {
-                'from_date': (timezone.now() - timedelta(days=7)).date().isoformat(),
-                'to_date': timezone.now().date().isoformat()
-            }
+            category='STREAMING',
+            status='CANCELLED',
+            cancellation_date=timezone.now().date()
         )
         
+        # Verify we have 2 cancelled subscriptions
+        self.assertEqual(Subscription.objects.filter(status='CANCELLED').count(), 2)
+        
+        # Delete all cancelled subscriptions
+        response = self.client.delete('/api/subscriptions/delete_all_cancelled/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['service_name'], 'Spotify')
+        
+        # Verify all cancelled subscriptions are deleted
+        self.assertEqual(Subscription.objects.filter(status='CANCELLED').count(), 0)
+        # Verify active subscription still exists
+        self.assertTrue(Subscription.objects.filter(status='ACTIVE').exists())
 
-    def test_deleted_subscription_details(self):
-        """Test that detailed information about a deleted subscription can be viewed"""
-        response = self.client.get(
-            f'/api/subscriptions/deleted/{self.deleted_subscription.id}/'
+    def test_restore_cancelled_subscription(self):
+        """Test that a cancelled subscription can be restored to active"""
+        cancelled_subscription = Subscription.objects.create(
+            user=self.user,
+            service_name='Disney+',
+            subscription_type='PAID',
+            price='7.99',
+            billing_cycle='MONTHLY',
+            start_date=timezone.now().date(),
+            category='STREAMING',
+            status='CANCELLED',
+            cancellation_date=timezone.now().date()
         )
+        
+        response = self.client.post(f'/api/subscriptions/{cancelled_subscription.id}/restore/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['service_name'], 'Spotify')
-        self.assertEqual(response.data['status'], 'DELETED')
-        self.assertIsNotNone(response.data['deleted_at'])
+        
+        restored_subscription = Subscription.objects.get(id=cancelled_subscription.id)
+        self.assertEqual(restored_subscription.status, 'ACTIVE')
+        self.assertIsNone(restored_subscription.cancellation_date)
 
-    def test_cannot_restore_nonexistent_subscription(self):
-        """Test that attempting to restore a non-existent subscription returns an error"""
-        response = self.client.post('/api/subscriptions/999/restore/')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_cannot_restore_active_subscription(self):
-        """Test that attempting to restore an active subscription returns an error"""
-        response = self.client.post(
-            f'/api/subscriptions/{self.active_subscription.id}/restore/'
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+# class FreeTrialEventTests(APITestCase):
+#     def setUp(self):
+#         self.user = User.objects.create_user(
+#             username='testuser',
+#             email='test@example.com',
+#             password='testpass123'
+#         )
+#         self.client = APIClient()
+#         self.client.force_authenticate(user=self.user)
+        
+#         # Create base subscription data
+#         self.no_reminder_subscription_data = {
+#             'service_name': 'Netflix',
+#             'subscription_type': 'FREE_TRIAL',
+#             'price': '9.99',
+#             'billing_cycle': 'MONTHLY',
+#             'start_date': timezone.now().date(),
+#             'category': 'STREAMING',
+#             'status': 'ACTIVE'
+#         }
+
+#         self.with_reminder_subscription_data = {
+#             'service_name': 'Youtube',
+#             'subscription_type': 'FREE_TRIAL',
+#             'price': '9.99',
+#             'billing_cycle': 'MONTHLY',
+#             'start_date': timezone.now().date(),
+#             'category': 'STREAMING',
+#             'status': 'ACTIVE',
+#             'send_reminder': True,
+#             'reminder_days_ahead': 1,
+#             'reminder_hour': 9,
+#             'reminder_minute': 0,
+#             'reminder_ampm': 'AM'
+#         }

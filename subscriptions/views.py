@@ -100,6 +100,25 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             'count': deleted_count
         })
 
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        """Restore a cancelled subscription"""
+        subscription = self.get_object()
+        if subscription.status != 'CANCELLED':
+            return Response(
+                {'detail': 'Only cancelled subscriptions can be restored'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        subscription.status = 'ACTIVE'
+        subscription.cancellation_date = None
+        subscription.save()
+        
+        return Response(
+            {'message': f'{subscription.service_name} has been restored to active'},
+            status=status.HTTP_200_OK
+        )
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def add_subscription_api(request):
