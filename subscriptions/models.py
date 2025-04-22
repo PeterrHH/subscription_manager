@@ -128,17 +128,68 @@ class Subscription(models.Model):
         
         return None
 
-    def create_event(self, event_type):
-        """Create a new event for this subscription"""
-        print(f"------ Creating event for {self.service_name} Event Type {event_type} ------- ")
-        current_time = timezone.now();
-        return SubscriptionEvent.objects.create(
+    def calculate_free_trial_end_date(self):
+        """Calculate the end date of the free trial"""
+        if self.free_trial_unit == 'DAYS':
+            return self.start_date + timezone.timedelta(days=self.free_trial_length)
+        elif self.free_trial_unit == 'MONTHS':
+            # Use similar logic as get_next_charge_date for monthly calculations
+            start = self.start_date
+            end_date = start
+            for _ in range(self.free_trial_length):
+                next_month = end_date.replace(day=1)
+                try:
+                    end_date = next_month.replace(month=next_month.month + 1, day=start.day)
+                except ValueError:
+                    if next_month.month == 12:
+                        end_date = next_month.replace(year=next_month.year + 1, month=1, day=1)
+                    else:
+                        end_date = next_month.replace(month=next_month.month + 1, day=1)
+            return end_date
+        return None
+
+    def create_or_update_free_trial_event(self):
+        """Create or update the free trial event"""
+        if self.subscription_type != 'FREE_TRIAL':
+            return
+
+        # Calculate trial end date
+        end_date = self.calculate_free_trial_end_date()
+        if not end_date:
+            return
+
+        # Create or update event with current time as event_date
+        event, created = SubscriptionEvent.objects.get_or_create(
             subscription=self,
-            event_type=event_type,
-            event_date=current_time,
-            reminder_sent = self.send_reminder,
-            reminder_date=current_time + timezone.timedelta(days=self.reminder_days_ahead),
+            event_type='FREE_TRIAL',
+            defaults={'event_date': timezone.now()}  # Event creation time
         )
+
+        # Set the trial end time (9 AM on end date)
+        end_datetime = timezone.datetime.combine(end_date, timezone.datetime.min.time())
+        end_datetime = end_datetime.replace(hour=9, minute=0, second=0, microsecond=0)
+        event.reminder_date = end_datetime
+
+        # Set an additional reminder before trial ends if enabled
+        if self.send_reminder and self.reminder_days_ahead:
+            reminder_date = end_date - timezone.timedelta(days=self.reminder_days_ahead)
+            reminder_datetime = timezone.datetime.combine(reminder_date, timezone.datetime.min.time())
+            
+            # Set the specific hour and minute for the early reminder
+            hour = self.reminder_hour
+            if self.reminder_ampm == 'PM' and hour != 12:
+                hour += 12
+            elif self.reminder_ampm == 'AM' and hour == 12:
+                hour = 0
+            
+            event.reminder_date = reminder_datetime.replace(
+                hour=hour,
+                minute=self.reminder_minute,
+                second=0,
+                microsecond=0
+            )
+
+        event.save()
 
     def update_reminder_event(self):
         """Update or create reminder event based on send_reminder flag"""
@@ -146,21 +197,27 @@ class Subscription(models.Model):
         if not self.send_reminder:
             SubscriptionEvent.objects.filter(subscription=self).delete()
             return
-            
-        # If send_reminder is True, create or update the event
-        event, created = SubscriptionEvent.objects.get_or_create(
-            subscription=self,
-            defaults={'reminder_date': None}  # Will be set below
-        )
         
-        # Calculate and set the reminder date
-        reminder_date = event.calculate_reminder_date()
-        if reminder_date:
-            event.reminder_date = reminder_date
-            event.reminder_sent = False
-            event.save()
+        # If send_reminder is True, create or update the event
+        if self.subscription_type == 'FREE_TRIAL':
+            # For free trials, use the create_or_update_free_trial_event method
+            self.create_or_update_free_trial_event()
         else:
-            event.delete()  # Delete if we can't calculate a valid reminder date
+            # For paid subscriptions, handle regular billing reminders
+            event, created = SubscriptionEvent.objects.get_or_create(
+                subscription=self,
+                event_type='PAID',
+                defaults={'event_date': timezone.now()}
+            )
+            
+            # Calculate and set the reminder date
+            reminder_date = event.calculate_reminder_date()
+            if reminder_date:
+                event.reminder_date = reminder_date
+                event.reminder_sent = False
+                event.save()
+            else:
+                event.delete()  # Delete if we can't calculate a valid reminder date
 
     def save(self, *args, **kwargs):
         # Get the old instance if this is an update
@@ -170,11 +227,20 @@ class Subscription(models.Model):
             
         super().save(*args, **kwargs)
         
-        # Check if send_reminder was changed
+        # Handle free trial event
+        if self.subscription_type == 'FREE_TRIAL':
+            self.create_or_update_free_trial_event()
+        
+        # Check if send_reminder was changed for regular reminders
         if old_instance and old_instance.send_reminder != self.send_reminder:
             self.update_reminder_event()
-        elif not old_instance and self.send_reminder:  # New subscription with reminders enabled
+        elif not old_instance and self.send_reminder:
             self.update_reminder_event()
+
+    def delete(self, *args, **kwargs):
+        # Delete associated events before deleting the subscription
+        SubscriptionEvent.objects.filter(subscription=self).delete()
+        super().delete(*args, **kwargs)
 
     def cancel(self):
         """Cancel the subscription and remove any reminder events"""
@@ -184,11 +250,16 @@ class Subscription(models.Model):
         SubscriptionEvent.objects.filter(subscription=self).delete()
 
 class SubscriptionEvent(models.Model):
+    EVENT_TYPES = [
+        ('PAID', 'Paid'),
+        ('FREE_TRIAL', 'Free Trial'),
+    ]
+    
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name='events')
-    event_date = models.DateTimeField(auto_now_add=True)
+    event_date = models.DateTimeField()  # Changed from auto_now_add to allow setting specific dates
     reminder_sent = models.BooleanField(default=False)
     reminder_date = models.DateTimeField(null=True, blank=True)
-    event_type = models.CharField(choices=SUBSCRIPTION_TYPES,max_length=20,default='PAID')
+    event_type = models.CharField(choices=EVENT_TYPES, max_length=20, default='PAID')
     
     class Meta:
         ordering = ['-event_date']

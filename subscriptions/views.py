@@ -148,8 +148,8 @@ def get_cancelled(request):
         print(f"CANCELLED SUBSCRIPTIONS {cancelled_subscriptions.values()}")
         # Serialize the data
         serializer = SubscriptionSerializer(cancelled_subscriptions, many=True)
-        print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print(f"SERIALIZER {serializer.data}")
+        # print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        # print(f"SERIALIZER {serializer.data}")
         return Response({
             'cancelled_subscriptions': serializer.data,
             'count': cancelled_subscriptions.count()

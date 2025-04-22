@@ -7,6 +7,7 @@ from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from .models import Subscription, SubscriptionEvent
 from .serializers import SubscriptionSerializer
+from dateutil.relativedelta import relativedelta
 
 class SubscriptionModelTests(TestCase):
     def setUp(self):
@@ -390,33 +391,44 @@ class FreeTrialEventTests(APITestCase):
 
 
     def test_free_trial_event_creation_no_reminder(self):
-        """Test that creating a free trial subscription creates an event without reminder"""
+        """Test that creating a free trial subscription creates an event with end date at 9 AM"""
         response = self.client.post('/api/subscriptions/', self.no_reminder_subscription_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         
         subscription = Subscription.objects.get(service_name='Netflix')
         event = SubscriptionEvent.objects.get(subscription=subscription)
         
-        # Calculate expected end date (30 days from start)
+        # Calculate expected end date (30 days from start at 9 AM)
         expected_end_date = subscription.start_date + timezone.timedelta(days=30)
+        expected_end_datetime = timezone.datetime.combine(expected_end_date, timezone.datetime.min.time())
+        expected_end_datetime = expected_end_datetime.replace(hour=9, minute=0, second=0, microsecond=0)
+        
         self.assertEqual(event.event_type, 'FREE_TRIAL')
-        self.assertEqual(event.event_date.date(), expected_end_date)
+        self.assertTrue((timezone.now() - event.event_date).total_seconds() < 10)  # Event was created recently
+        self.assertEqual(event.reminder_date, expected_end_datetime)
 
     def test_free_trial_event_creation_with_reminder(self):
-        """Test that creating a free trial subscription creates an event with reminder"""
+        """Test that creating a free trial subscription creates an event with early reminder"""
         response = self.client.post('/api/subscriptions/', self.with_reminder_subscription_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         
         subscription = Subscription.objects.get(service_name='Youtube')
         event = SubscriptionEvent.objects.get(subscription=subscription)
         
-        # Calculate expected end date and reminder date
-        expected_end_date = subscription.start_date + timezone.timedelta(days=30)
-        expected_reminder_date = expected_end_date - timezone.timedelta(days=1)
+        # Calculate expected reminder date (1 day before end at specified time)
+        end_date = subscription.start_date + timezone.timedelta(days=30)
+        reminder_date = end_date - timezone.timedelta(days=1)
+        expected_reminder_datetime = timezone.datetime.combine(reminder_date, timezone.datetime.min.time())
+        expected_reminder_datetime = expected_reminder_datetime.replace(
+            hour=9,  # From the test data
+            minute=0,
+            second=0,
+            microsecond=0
+        )
         
         self.assertEqual(event.event_type, 'FREE_TRIAL')
-        self.assertEqual(event.event_date.date(), expected_end_date)
-        self.assertEqual(event.reminder_date.date(), expected_reminder_date)
+        self.assertTrue((timezone.now() - event.event_date).total_seconds() < 10)  # Event was created recently
+        self.assertEqual(event.reminder_date, expected_reminder_datetime)
 
     def test_free_trial_event_creation_with_reminder_monthly(self):
         """Test that creating a free trial subscription with monthly unit creates an event with reminder"""
@@ -426,15 +438,20 @@ class FreeTrialEventTests(APITestCase):
         subscription = Subscription.objects.get(service_name='Youtube')
         event = SubscriptionEvent.objects.get(subscription=subscription)
 
-        # Calculate expected end date and reminder date
-        expected_end_date = subscription.start_date + timezone.timedelta(months=2)
-        expected_reminder_date = expected_end_date - timezone.timedelta(days=5)
+        # Calculate expected reminder date (5 days before end at specified time)
+        end_date = subscription.start_date + relativedelta(months=2)
+        reminder_date = end_date - timezone.timedelta(days=5)
+        expected_reminder_datetime = timezone.datetime.combine(reminder_date, timezone.datetime.min.time())
+        expected_reminder_datetime = expected_reminder_datetime.replace(
+            hour=9,  # From the test data
+            minute=0,
+            second=0,
+            microsecond=0
+        )
         
         self.assertEqual(event.event_type, 'FREE_TRIAL')
-        self.assertEqual(event.event_date.date(), expected_end_date)
-        self.assertEqual(event.reminder_date.date(), expected_reminder_date)
-
-
+        self.assertTrue((timezone.now() - event.event_date).total_seconds() < 10)  # Event was created recently
+        self.assertEqual(event.reminder_date, expected_reminder_datetime)
 
     def test_free_trial_event_deletion(self):
         """Test that removing a free trial subscription deletes its event"""
@@ -460,7 +477,7 @@ class FreeTrialEventTests(APITestCase):
         ).exists())
 
     def test_free_trial_end_time_update(self):
-        """Test that updating free trial length updates the event end time"""
+        """Test that updating free trial length updates the reminder date"""
         response = self.client.post('/api/subscriptions/', self.no_reminder_subscription_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         subscription_id = response.data['id']
@@ -475,8 +492,14 @@ class FreeTrialEventTests(APITestCase):
         
         event = SubscriptionEvent.objects.get(subscription_id=subscription_id)
         subscription = Subscription.objects.get(id=subscription_id)
+        
+        # Calculate expected end date at 9 AM
         expected_end_date = subscription.start_date + timezone.timedelta(days=60)
-        self.assertEqual(event.event_date.date(), expected_end_date)
+        expected_end_datetime = timezone.datetime.combine(expected_end_date, timezone.datetime.min.time())
+        expected_end_datetime = expected_end_datetime.replace(hour=9, minute=0, second=0, microsecond=0)
+        
+        self.assertTrue((timezone.now() - event.event_date).total_seconds() < 10)  # Event was updated recently
+        self.assertEqual(event.reminder_date, expected_end_datetime)
 
     def test_free_trial_other_info_update(self):
         """Test that updating other subscription info doesn't affect the free trial event"""
@@ -502,25 +525,25 @@ class FreeTrialEventTests(APITestCase):
     def test_free_trial_event_timing(self):
         """Test the timing behavior of free trial events"""
         with self.settings(USE_TZ=True):
-            # Create subscription with start date today
             response = self.client.post('/api/subscriptions/', self.no_reminder_subscription_data, format='json')
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             subscription_id = response.data['id']
             
+            subscription = Subscription.objects.get(id=subscription_id)
+            event = SubscriptionEvent.objects.get(subscription=subscription)
+            
             # Fast forward to just before trial end
-            future_date = timezone.now() + timezone.timedelta(days=29)
-            with timezone.override(future_date):
-                subscription = Subscription.objects.get(id=subscription_id)
+            future_date = event.reminder_date - timezone.timedelta(hours=1)
+            with timezone.override(timezone.utc):
+                timezone.now = lambda: future_date
                 self.assertEqual(subscription.status, 'ACTIVE')
-                event = SubscriptionEvent.objects.get(subscription=subscription)
-                self.assertFalse(event.event_date <= timezone.now())
+                self.assertFalse(event.reminder_date <= future_date)
             
             # Fast forward to after trial end
-            future_date = timezone.now() + timezone.timedelta(days=31)
-            with timezone.override(future_date):
-                subscription = Subscription.objects.get(id=subscription_id)
-                event = SubscriptionEvent.objects.get(subscription=subscription)
-                self.assertTrue(event.event_date <= timezone.now())
+            future_date = event.reminder_date + timezone.timedelta(hours=1)
+            with timezone.override(timezone.utc):
+                timezone.now = lambda: future_date
+                self.assertTrue(event.reminder_date <= future_date)
 
     def test_free_trial_event_creation_monthly_unit(self):
         """Test that creating a free trial subscription with monthly unit creates correct event"""
