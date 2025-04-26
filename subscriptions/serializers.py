@@ -3,6 +3,7 @@ from .models import Subscription
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     next_charge_date = serializers.SerializerMethodField()
+    free_trial_end_date = serializers.SerializerMethodField()
     
     class Meta:
         model = Subscription
@@ -26,15 +27,23 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'free_trial_length',
             'free_trial_unit',
             'created_at',
-            'updated_at'
+            'updated_at',
+            'free_trial_end_date',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'next_charge_date']
+        read_only_fields = ['created_at', 'updated_at', 'next_charge_date', 'free_trial_end_date']
 
     def get_next_charge_date(self, obj):
         """Get the calculated next charge date"""
         next_date = obj.get_next_charge_date()
         if next_date:
             return next_date.isoformat()
+        return None
+
+    def get_free_trial_end_date(self, obj):
+        if obj.subscription_type == 'FREE_TRIAL':
+            end_date = obj.calculate_free_trial_end_date()
+            if end_date:
+                return end_date.isoformat()
         return None
 
     # def validate_price(self, value):

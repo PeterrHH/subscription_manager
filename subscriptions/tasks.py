@@ -5,6 +5,10 @@ from .models import Subscription, SubscriptionEvent
 from .notifications import NotificationServiceFactory
 
 @shared_task
+def check_free_trial_event_execution():
+    pass
+
+@shared_task
 def check_upcoming_subscriptions():
     # Get all active subscriptions
     active_subscriptions = Subscription.objects.filter(is_active=True)

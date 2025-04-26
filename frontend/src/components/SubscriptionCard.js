@@ -87,6 +87,14 @@ const SubscriptionCard = ({
     return `Reminder: ${reminderMap[reminder_time] || ''}`;
   };
 
+  const isFreeTrialEnded = () => {
+    if (subscription_type !== 'FREE_TRIAL') return false;
+    // Use free_trial_end_date if available, otherwise fallback to next_charge_date
+    const endDate = subscription.free_trial_end_date || subscription.next_charge_date;
+    if (!endDate) return false;
+    return new Date(endDate) < new Date();
+  };
+
   return (
     <>
       <Box
@@ -100,7 +108,14 @@ const SubscriptionCard = ({
         _hover={{ shadow: 'md' }}
         position="relative"
       >
-        
+        {isFreeTrialEnded() && (
+          <Tooltip label="Free Trial Over, Edit to convert to subscription or remove it." placement="top">
+            <Box position="absolute" top={2} right={2}>
+              <Text as="span" color="red.500" fontWeight="bold" fontSize="2xl">!</Text>
+            </Box>
+          </Tooltip>
+        )}
+
         <Flex justify="space-between" align="flex-start" mb={3}>
           <Heading size="md" fontWeight="semibold">{service_name}</Heading>
           <Badge colorScheme={getCategoryColor(category)}>
@@ -125,7 +140,9 @@ const SubscriptionCard = ({
           {isCancelled ? (
             `Cancelled on: ${formatDate(cancellation_date)}`
           ) : subscription_type === 'FREE_TRIAL' ? (
-            `Trial ends: ${formatDate(next_charge_date)}`
+            isFreeTrialEnded()
+            ? "Trial Ended"
+            :`Trial ends: ${formatDate(subscription.free_trial_end_date || next_charge_date)}`
           ) : (
             `Next charge: ${formatDate(next_charge_date)}`
           )}

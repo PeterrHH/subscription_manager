@@ -79,9 +79,24 @@ const Dashboard = () => {
     navigate('/add');
   };
 
+  // Helper to check if a free trial has ended
+  const isFreeTrialEnded = (sub) => {
+    if (sub.subscription_type !== 'FREE_TRIAL') return false;
+    const endDate = sub.free_trial_end_date || sub.next_charge_date;
+    if (!endDate) return false;
+    return new Date(endDate) < new Date();
+  };
+
   const filteredSubscriptions = subscriptions
     .filter(sub => !filter || sub.category === filter)
     .sort((a, b) => {
+      // Ended free trials first
+      const aEnded = isFreeTrialEnded(a);
+      const bEnded = isFreeTrialEnded(b);
+      if (aEnded && !bEnded) return -1;
+      if (!aEnded && bEnded) return 1;
+
+      // Then apply the selected sort
       if (sortBy === 'price') return a.price - b.price;
       if (sortBy === 'name') return a.service_name.localeCompare(b.service_name);
       return new Date(a.next_charge_date) - new Date(b.next_charge_date);
