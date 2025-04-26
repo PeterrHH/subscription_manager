@@ -168,6 +168,8 @@ class Subscription(models.Model):
         # Set the trial end time (9 AM on end date)
         end_datetime = timezone.datetime.combine(end_date, timezone.datetime.min.time())
         end_datetime = end_datetime.replace(hour=9, minute=0, second=0, microsecond=0)
+        if timezone.is_naive(end_datetime):
+            end_datetime = timezone.make_aware(end_datetime, timezone.utc)
         event.reminder_date = end_datetime
 
         # Set an additional reminder before trial ends if enabled
@@ -182,6 +184,8 @@ class Subscription(models.Model):
             elif self.reminder_ampm == 'AM' and hour == 12:
                 hour = 0
             
+            if timezone.is_naive(reminder_datetime):
+                reminder_datetime = timezone.make_aware(reminder_datetime, timezone.utc)
             event.reminder_date = reminder_datetime.replace(
                 hour=hour,
                 minute=self.reminder_minute,
@@ -213,6 +217,8 @@ class Subscription(models.Model):
             # Calculate and set the reminder date
             reminder_date = event.calculate_reminder_date()
             if reminder_date:
+                if timezone.is_naive(reminder_date):
+                    reminder_date = timezone.make_aware(reminder_date, timezone.utc)
                 event.reminder_date = reminder_date
                 event.reminder_sent = False
                 event.save()
@@ -286,6 +292,8 @@ class SubscriptionEvent(models.Model):
         elif self.subscription.reminder_ampm == 'AM' and hour == 12:
             hour = 0
             
+        if timezone.is_naive(reminder_datetime):
+            reminder_datetime = timezone.make_aware(reminder_datetime, timezone.utc)
         return reminder_datetime.replace(
             hour=hour,
             minute=self.subscription.reminder_minute,

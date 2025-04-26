@@ -400,8 +400,10 @@ class FreeTrialEventTests(APITestCase):
         
         # Calculate expected end date (30 days from start at 9 AM)
         expected_end_date = subscription.start_date + timezone.timedelta(days=30)
-        expected_end_datetime = timezone.datetime.combine(expected_end_date, timezone.datetime.min.time())
-        expected_end_datetime = expected_end_datetime.replace(hour=9, minute=0, second=0, microsecond=0)
+        expected_end_datetime = timezone.datetime.combine(
+            expected_end_date,
+            timezone.datetime.min.time()
+        ).replace(hour=9, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
         
         self.assertEqual(event.event_type, 'FREE_TRIAL')
         self.assertTrue((timezone.now() - event.event_date).total_seconds() < 10)  # Event was created recently
@@ -423,7 +425,8 @@ class FreeTrialEventTests(APITestCase):
             hour=9,  # From the test data
             minute=0,
             second=0,
-            microsecond=0
+            microsecond=0,
+            tzinfo=timezone.utc
         )
         
         self.assertEqual(event.event_type, 'FREE_TRIAL')
@@ -441,14 +444,18 @@ class FreeTrialEventTests(APITestCase):
         # Calculate expected reminder date (5 days before end at specified time)
         end_date = subscription.start_date + relativedelta(months=2)
         reminder_date = end_date - timezone.timedelta(days=5)
-        expected_reminder_datetime = timezone.datetime.combine(reminder_date, timezone.datetime.min.time())
-        expected_reminder_datetime = expected_reminder_datetime.replace(
-            hour=9,  # From the test data
-            minute=0,
-            second=0,
-            microsecond=0
-        )
-        
+        # expected_reminder_datetime = timezone.datetime.combine(reminder_date, timezone.datetime.min.time())
+        # expected_reminder_datetime = expected_reminder_datetime.replace(
+        #     hour=9,  # From the test data
+        #     minute=0,
+        #     second=0,
+        #     microsecond=0
+        # )
+        expected_reminder_datetime = timezone.datetime.combine(
+            reminder_date,
+            timezone.datetime.min.time()
+        ).replace(hour=9, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+        self.assertEqual(event.reminder_date, expected_reminder_datetime)
         self.assertEqual(event.event_type, 'FREE_TRIAL')
         self.assertTrue((timezone.now() - event.event_date).total_seconds() < 10)  # Event was created recently
         self.assertEqual(event.reminder_date, expected_reminder_datetime)
@@ -495,8 +502,10 @@ class FreeTrialEventTests(APITestCase):
         
         # Calculate expected end date at 9 AM
         expected_end_date = subscription.start_date + timezone.timedelta(days=60)
-        expected_end_datetime = timezone.datetime.combine(expected_end_date, timezone.datetime.min.time())
-        expected_end_datetime = expected_end_datetime.replace(hour=9, minute=0, second=0, microsecond=0)
+        expected_end_datetime = timezone.datetime.combine(
+            expected_end_date,
+            timezone.datetime.min.time()
+        ).replace(hour=9, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
         
         self.assertTrue((timezone.now() - event.event_date).total_seconds() < 10)  # Event was updated recently
         self.assertEqual(event.reminder_date, expected_end_datetime)
@@ -575,4 +584,4 @@ class FreeTrialEventTests(APITestCase):
                 expected_end_date = next_month.replace(month=next_month.month + 1, day=1)
         
         self.assertEqual(event.event_type, 'FREE_TRIAL')
-        self.assertEqual(event.event_date.date(), expected_end_date)
+        self.assertEqual(event.reminder_date.date(), expected_end_date)
