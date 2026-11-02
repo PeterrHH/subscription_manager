@@ -2,10 +2,6 @@
 
 A full-stack web application for managing subscriptions, built with Django and React.
 
-# Trello Board
-https://trello.com/b/iACNBQCT/subman
-
-
 ## Prerequisites
 
 - Python 3.8 or higher (Ideally Python 11)
